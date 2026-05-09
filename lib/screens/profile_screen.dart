@@ -75,35 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Only watch the fields that should trigger a UI refresh
     final provider = context.watch<WorkoutProvider>();
 
-    if (provider.history.isEmpty) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.person_outline,
-                    color: AppColors.textSecondary, size: 56),
-                SizedBox(height: 16),
-                Text('No workouts yet',
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-                SizedBox(height: 8),
-                Text('Complete your first workout to see your stats here.',
-                    style: TextStyle(
-                        color: AppColors.textSecondary, fontSize: 14),
-                    textAlign: TextAlign.center),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     // Only recompute if history or week start setting changed
     if (provider.history.length != _cachedLen ||
         provider.weekStartDay != _cachedWeekStartDay) {
@@ -138,47 +109,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontWeight: FontWeight.bold)),
             ),
           ),
-          SliverList(
-            delegate: SliverChildListDelegate([
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _AllTimeStatsGrid(stats: _stats, consistencyScore: _consistency),
-                    const SizedBox(height: 20),
-                    _sectionTitle('Workouts per Week'),
-                    const SizedBox(height: 10),
-                    _WorkoutsPerWeekChart(
-                      trainedDays: _trainedDays,
-                      earliestDate: _earliestDate,
-                      weeklyTarget: provider.weeklyTargetDays,
-                      weekStartDay: provider.weekStartDay,
-                    ),
-                    const SizedBox(height: 20),
-                    _sectionTitle('Muscle Group Breakdown'),
-                    const SizedBox(height: 10),
-                    _MuscleBreakdown(muscleSetMap: _muscleAllTime),
-                    const SizedBox(height: 20),
-                    _sectionTitle('Training Patterns'),
-                    const SizedBox(height: 10),
-                    _TrainingPatterns(patterns: _patterns),
-                    const SizedBox(height: 20),
-                    _sectionTitle('Most Trained Exercises'),
-                    const SizedBox(height: 10),
-                    _MostTrainedList(exercises: _mostTrained),
-                    if (_prs.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      _sectionTitle('Personal Records'),
-                      const SizedBox(height: 10),
-                      _PRList(prs: _prs, provider: provider),
+          if (provider.history.isEmpty)
+            const SliverFillRemaining(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_outline,
+                          color: AppColors.textSecondary, size: 56),
+                      SizedBox(height: 16),
+                      Text('No workouts yet',
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      SizedBox(height: 8),
+                      Text('Complete your first workout to see your stats here.',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 14),
+                          textAlign: TextAlign.center),
                     ],
-                    const SizedBox(height: 32),
-                  ],
+                  ),
                 ),
               ),
-            ]),
-          ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildListDelegate([
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _AllTimeStatsGrid(stats: _stats, consistencyScore: _consistency),
+                      const SizedBox(height: 20),
+                      _sectionTitle('Workouts per Week'),
+                      const SizedBox(height: 10),
+                      _WorkoutsPerWeekChart(
+                        trainedDays: _trainedDays,
+                        earliestDate: _earliestDate,
+                        weeklyTarget: provider.weeklyTargetDays,
+                        weekStartDay: provider.weekStartDay,
+                      ),
+                      const SizedBox(height: 20),
+                      _sectionTitle('Muscle Group Breakdown'),
+                      const SizedBox(height: 10),
+                      _MuscleBreakdown(muscleSetMap: _muscleAllTime),
+                      const SizedBox(height: 20),
+                      _sectionTitle('Training Patterns'),
+                      const SizedBox(height: 10),
+                      _TrainingPatterns(patterns: _patterns),
+                      const SizedBox(height: 20),
+                      _sectionTitle('Most Trained Exercises'),
+                      const SizedBox(height: 10),
+                      _MostTrainedList(exercises: _mostTrained),
+                      if (_prs.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        _sectionTitle('Personal Records'),
+                        const SizedBox(height: 10),
+                        _PRList(prs: _prs, provider: provider),
+                      ],
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
         ],
       ),
     );
