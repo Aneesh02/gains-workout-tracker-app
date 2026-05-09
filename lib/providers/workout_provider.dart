@@ -707,6 +707,72 @@ class WorkoutProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Imports parsed sessions from a Strong CSV export.
+  /// Skips sessions whose startTime already exists in history (within 60 s).
+  /// Returns the number of sessions actually added.
+  int importFromStrong(List<WorkoutSession> sessions) {
+    final existingTimes = _history.map((s) => s.startTime).toList();
+    final newSessions = sessions.where((s) => !existingTimes.any(
+      (t) => t.difference(s.startTime).inSeconds.abs() < 60,
+    )).toList();
+
+    if (newSessions.isEmpty) return 0;
+
+    // Process oldest-first so PRs accumulate correctly over time.
+    newSessions.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    for (final session in newSessions) {
+      for (final ex in session.exercises) {
+        final found = _exercises.firstWhere(
+          (e) => e.id == ex.exerciseId,
+          orElse: () => Exercise(id: '', name: '', muscleGroup: ''),
+        );
+        if (found.id.isNotEmpty) found.timesPerformed++;
+
+        if (ex.exerciseType == ExerciseType.cardio) {
+          for (final set in ex.sets.where((s) => s.completed && s.kmInput.isNotEmpty)) {
+            final km = double.tryParse(set.kmInput);
+            if (km == null) continue;
+            final existing = _prRecords[ex.exerciseId];
+            if (existing == null || !existing.isCardio || km > existing.km!) {
+              _prRecords[ex.exerciseId] = PrRecord(
+                e1rm: 0, weight: 0, reps: 0,
+                date: session.endTime ?? session.startTime,
+                km: km,
+              );
+              if (!session.personalRecords.contains(ex.exerciseName)) {
+                session.personalRecords.add(ex.exerciseName);
+              }
+            }
+          }
+        } else {
+          for (final set in ex.sets.where((s) =>
+              s.completed && s.weight != null && s.reps != null)) {
+            final e1rm = set.weight! * (1 + set.reps! / 30.0);
+            final existing = _prRecords[ex.exerciseId];
+            if (existing == null || existing.isCardio || e1rm > existing.e1rm) {
+              _prRecords[ex.exerciseId] = PrRecord(
+                e1rm: e1rm,
+                weight: set.weight!,
+                reps: set.reps!,
+                date: session.endTime ?? session.startTime,
+              );
+              if (!session.personalRecords.contains(ex.exerciseName)) {
+                session.personalRecords.add(ex.exerciseName);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    _history.addAll(newSessions);
+    _history.sort((a, b) => b.startTime.compareTo(a.startTime));
+    _save();
+    notifyListeners();
+    return newSessions.length;
+  }
+
   // ── Templates ─────────────────────────────────────────────────────────────
 
   void saveTemplate(String name, List<WorkoutExercise> exercises) {

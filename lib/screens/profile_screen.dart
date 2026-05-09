@@ -1,13 +1,17 @@
+import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/exercise.dart';
 import '../models/gym_settings.dart';
 import '../models/pr_record.dart';
 import '../models/workout_session.dart';
 import '../providers/workout_provider.dart';
 import '../services/csv_export_service.dart';
+import '../services/csv_import_service.dart';
 import '../services/github_sync_service.dart';
 import '../services/notification_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -622,6 +626,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 24),
           _sectionHeader('Data'),
           _ExportTile(provider: provider),
+          _ImportTile(provider: provider),
           _comingSoonTile(
             Icons.cloud_outlined,
             'Sync to cloud',
@@ -1286,6 +1291,83 @@ class _ExportTileState extends State<_ExportTile> {
       await CsvExportService.exportAndShare(widget.provider.history);
     } finally {
       if (mounted) setState(() => _exporting = false);
+    }
+  }
+}
+
+// ── Strong CSV import tile ────────────────────────────────────────────────────
+
+class _ImportTile extends StatefulWidget {
+  final WorkoutProvider provider;
+  const _ImportTile({required this.provider});
+
+  @override
+  State<_ImportTile> createState() => _ImportTileState();
+}
+
+class _ImportTileState extends State<_ImportTile> {
+  bool _importing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 1),
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: ListTile(
+        leading: _importing
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.blue),
+              )
+            : const Icon(Icons.download_outlined,
+                color: AppColors.blue, size: 22),
+        title: const Text('Import from Strong',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+        subtitle: const Text(
+          'Pick a Strong CSV export to backfill history',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        trailing: const Icon(Icons.chevron_right,
+            color: AppColors.textSecondary, size: 20),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        onTap: _importing ? null : _import,
+      ),
+    );
+  }
+
+  Future<void> _import() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result == null || result.files.single.path == null) return;
+
+    setState(() => _importing = true);
+    try {
+      final file = File(result.files.single.path!);
+      final content = await file.readAsString();
+      final jsonList = await compute(parseCsvBackground, content);
+      final sessions =
+          jsonList.map((j) => WorkoutSession.fromJson(j)).toList();
+      final added = widget.provider.importFromStrong(sessions);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(added == 0
+              ? 'Nothing new — all sessions already imported'
+              : 'Imported $added workout${added == 1 ? '' : 's'} from Strong'),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _importing = false);
     }
   }
 }
