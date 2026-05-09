@@ -334,34 +334,6 @@
       color: var(--muted);
     }
 
-    /* ── Phone mockup ── */
-    .guide-step {
-      display: grid;
-      grid-template-columns: 1fr 200px;
-      gap: 32px;
-      align-items: start;
-    }
-    @media (max-width: 640px) {
-      .guide-step { grid-template-columns: 1fr; }
-      .guide-step .phone-wrap { justify-self: center; }
-    }
-    .phone-wrap {
-      display: flex;
-      justify-content: center;
-    }
-    .phone-frame {
-      width: 160px;
-      border-radius: 28px;
-      border: 3px solid var(--border);
-      overflow: hidden;
-      background: #000;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-      flex-shrink: 0;
-    }
-    .phone-frame img {
-      width: 100%;
-      display: block;
-    }
 
     /* ── Footer ── */
     footer {
@@ -546,136 +518,78 @@
   <div class="section-label">Getting started</div>
   <h2 class="section-title">How to use Gains</h2>
 
-  <div style="max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:56px;">
+  <div style="max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:48px;">
 
-    <!-- Logging a workout -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">🏋️ Logging a workout</h3>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>Tap the <strong style="color:var(--text)">Workout</strong> tab (centre of the bottom bar).</li>
-          <li>Tap <strong style="color:var(--text)">Start Empty Workout</strong> or choose one of your saved templates.</li>
-          <li>Tap <strong style="color:var(--text)">Add Exercise</strong> and search for an exercise — over 300 are built in, or create your own.</li>
-          <li>Type the weight and reps using the custom keypad that slides up.</li>
-          <li>Tap the <strong style="color:var(--text)">checkmark</strong> to mark a set complete. The row turns green and the rest timer starts automatically.</li>
-          <li>Tap <strong style="color:var(--text)">Finish</strong> (top right) when you're done. PRs are flagged automatically.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/workout_tab.jpg" alt="Workout tab" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">🏋️ Logging a workout</h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap the <strong style="color:var(--text)">Workout</strong> tab (centre of the bottom bar).</li>
+        <li>Tap <strong style="color:var(--text)">Start Empty Workout</strong> or choose one of your saved templates.</li>
+        <li>Tap <strong style="color:var(--text)">Add Exercise</strong> and search for an exercise — over 300 are built in, or create your own.</li>
+        <li>Type the weight and reps using the custom keypad that slides up.</li>
+        <li>Tap the <strong style="color:var(--text)">checkmark</strong> to mark a set complete. The row turns green and the rest timer starts automatically.</li>
+        <li>Tap <strong style="color:var(--text)">Finish</strong> (top right) when you're done. PRs are flagged automatically.</li>
+      </ol>
     </div>
 
-    <!-- Entering sets -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">⌨️ Entering weight & reps</h3>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>Tap a weight or reps field — the custom keypad slides up.</li>
-          <li>Use <strong style="color:var(--text)">− / +</strong> to increment by 0.5 kg or 1 rep without retyping.</li>
-          <li>Tap <strong style="color:var(--text)">NEXT</strong> to jump to the next field in the row.</li>
-          <li>The <strong style="color:var(--text)">PREVIOUS</strong> column shows your last session's data for that set — tap the checkmark to auto-fill it.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/custom_keyboard.jpg" alt="Custom keyboard" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">⌨️ Entering weight & reps</h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap a weight or reps field — the custom keypad slides up.</li>
+        <li>Use <strong style="color:var(--text)">− / +</strong> to increment by 0.5 kg or 1 rep without retyping.</li>
+        <li>Tap <strong style="color:var(--text)">NEXT</strong> to jump to the next field in the row.</li>
+        <li>The <strong style="color:var(--text)">PREVIOUS</strong> column shows your last session's data — tap the checkmark to auto-fill it.</li>
+      </ol>
     </div>
 
-    <!-- Rest timer -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">⏱️ Rest timer</h3>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>The timer starts automatically after you complete a set.</li>
-          <li>Use the <strong style="color:var(--text)">−30s / +30s</strong> buttons to adjust on the fly.</li>
-          <li>Tap the timer bar to change the default rest duration for that exercise.</li>
-          <li>The timer rings when rest is over.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/active_workout.jpg" alt="Active workout with rest timer" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">⏱️ Rest timer</h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>The timer starts automatically after you complete a set.</li>
+        <li>Use the <strong style="color:var(--text)">−30s / +30s</strong> buttons to adjust on the fly.</li>
+        <li>Tap the timer bar to change the default rest duration for that exercise.</li>
+        <li>The timer rings when rest is over.</li>
+      </ol>
     </div>
 
-    <!-- RPE -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">📊 RPE (Rate of Perceived Exertion)</h3>
-        <p style="color:var(--muted); font-size:0.92rem; line-height:1.8; margin-bottom:12px;">
-          RPE is optional — it tracks how hard a set felt on a scale of 6–10.
-        </p>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>Tap the <strong style="color:var(--text)">RPE</strong> key on the custom keypad to switch to the RPE picker.</li>
-          <li>Select a value from 6 to 10 in 0.5 increments.</li>
-          <li>RPE is shown in workout history and exported to CSV.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/rpe_picker.jpg" alt="RPE picker" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">📊 RPE (Rate of Perceived Exertion)</h3>
+      <p style="color:var(--muted); font-size:0.92rem; line-height:1.8; margin-bottom:12px;">RPE is optional — it tracks how hard a set felt on a scale of 6–10.</p>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap the <strong style="color:var(--text)">RPE</strong> key on the custom keypad to switch to the RPE picker.</li>
+        <li>Select a value from 6 to 10 in 0.5 increments.</li>
+        <li>RPE is shown in workout history and exported to CSV.</li>
+      </ol>
     </div>
 
-    <!-- Exercise library -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">📚 Exercise library</h3>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>The <strong style="color:var(--text)">Exercises</strong> tab lists all exercises sorted by how often you do them.</li>
-          <li>Use the search bar or filter by muscle group, movement type (Push/Pull), or category (Compound/Isolation).</li>
-          <li>Tap any exercise to see your progress chart — e1RM trend, volume, and full set history.</li>
-          <li>Long-press a custom exercise to edit or delete it.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/exercises_tab.jpg" alt="Exercises tab" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">📚 Exercise library</h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>The <strong style="color:var(--text)">Exercises</strong> tab lists all exercises sorted by how often you do them.</li>
+        <li>Use the search bar or filter by muscle group, movement type (Push/Pull), or category (Compound/Isolation).</li>
+        <li>Tap any exercise to see your progress chart — e1RM trend, volume, and full set history.</li>
+        <li>Long-press a custom exercise to edit or delete it.</li>
+      </ol>
     </div>
 
-    <!-- History -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">📚 Workout history</h3>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>The <strong style="color:var(--text)">History</strong> tab shows all past sessions grouped by date.</li>
-          <li>Tap any session to see full details — every set, weight, and PR.</li>
-          <li>Tap the <strong style="color:var(--text)">edit icon</strong> inside a session to correct weights, reps, or notes.</li>
-          <li>Swipe left on a session card to delete it.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/history_tab.jpg" alt="History tab" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">📚 Workout history</h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>The <strong style="color:var(--text)">History</strong> tab shows all past sessions grouped by date.</li>
+        <li>Tap any session to see full details — every set, weight, and PR.</li>
+        <li>Tap the <strong style="color:var(--text)">edit icon</strong> inside a session to correct weights, reps, or notes.</li>
+        <li>Swipe left on a session card to delete it.</li>
+      </ol>
     </div>
 
-    <!-- Congratulations / finish -->
-    <div class="guide-step">
-      <div>
-        <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">🏆 Finishing a workout</h3>
-        <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
-          <li>Tap <strong style="color:var(--text)">Finish</strong> — you'll see a summary with duration, total volume, and any new PRs.</li>
-          <li>A star rating reflects workout quality based on set completion and volume vs your average.</li>
-          <li>Tap <strong style="color:var(--text)">Save as Template</strong> to reuse this workout layout later.</li>
-          <li>The workout is synced to GitHub automatically if you have it connected.</li>
-        </ol>
-      </div>
-      <div class="phone-wrap">
-        <div class="phone-frame">
-          <img src="screenshots/congratulations.jpg" alt="Congratulations screen" loading="lazy" />
-        </div>
-      </div>
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">🏆 Finishing a workout</h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap <strong style="color:var(--text)">Finish</strong> — you'll see a summary with duration, total volume, and any new PRs.</li>
+        <li>A star rating reflects workout quality based on set completion and volume vs your average.</li>
+        <li>Tap <strong style="color:var(--text)">Save as Template</strong> to reuse this workout layout later.</li>
+        <li>The workout is synced to GitHub automatically if you have it connected.</li>
+      </ol>
     </div>
 
     <!-- Smart reminders -->
