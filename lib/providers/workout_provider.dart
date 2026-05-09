@@ -702,9 +702,11 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   void deleteWorkout(String id) {
+    final record = _syncRecords[id];
     _history.removeWhere((s) => s.id == id);
     _save();
     notifyListeners();
+    if (record != null) _archiveSessionBackground(record);
   }
 
   /// Imports parsed sessions from a Strong CSV export.
@@ -770,6 +772,9 @@ class WorkoutProvider extends ChangeNotifier {
     _history.sort((a, b) => b.startTime.compareTo(a.startTime));
     _save();
     notifyListeners();
+    for (final session in newSessions) {
+      _syncSessionBackground(session);
+    }
     return newSessions.length;
   }
 
@@ -978,12 +983,65 @@ class WorkoutProvider extends ChangeNotifier {
 
   SessionSyncRecord? getSyncRecord(String sessionId) => _syncRecords[sessionId];
 
+  // Fire-and-forget: push a session + metrics to GitHub.
+  void _syncSessionBackground(WorkoutSession session) {
+    final s = _gymSettings;
+    if (s.githubOwner.isEmpty || s.githubRepo.isEmpty) return;
+    unawaited(_pushSessionAndMetrics(session, s));
+  }
+
+  Future<void> _pushSessionAndMetrics(WorkoutSession session, GymSettings s) async {
+    final svc = GitHubSyncService();
+    await svc.pushSession(
+      session: session,
+      owner: s.githubOwner,
+      repo: s.githubRepo,
+      branch: s.githubBranch,
+      existingRecord: _syncRecords[session.id],
+      onSaved: saveSyncRecord,
+    );
+    await svc.pushMetrics(
+      owner: s.githubOwner,
+      repo: s.githubRepo,
+      branch: s.githubBranch,
+      content: MetricsMarkdownService.buildNote(this),
+    );
+  }
+
+  // Fire-and-forget: archive a deleted session on GitHub and refresh metrics.
+  void _archiveSessionBackground(SessionSyncRecord record) {
+    final s = _gymSettings;
+    if (s.githubOwner.isEmpty || s.githubRepo.isEmpty) return;
+    unawaited(_archiveAndUpdateMetrics(record, s));
+  }
+
+  Future<void> _archiveAndUpdateMetrics(SessionSyncRecord record, GymSettings s) async {
+    final svc = GitHubSyncService();
+    final error = await svc.archiveWorkout(
+      owner: s.githubOwner,
+      repo: s.githubRepo,
+      branch: s.githubBranch,
+      sourcePath: record.filePath,
+    );
+    if (error == null) {
+      _syncRecords.remove(record.sessionId);
+      _syncBox.delete(record.sessionId);
+    }
+    await svc.pushMetrics(
+      owner: s.githubOwner,
+      repo: s.githubRepo,
+      branch: s.githubBranch,
+      content: MetricsMarkdownService.buildNote(this),
+    );
+  }
+
   void saveHistorySession(WorkoutSession updated) {
     final idx = _history.indexWhere((s) => s.id == updated.id);
     if (idx == -1) return;
     _history[idx] = updated;
     _save();
     notifyListeners();
+    _syncSessionBackground(updated);
   }
 
   /// Pushes all new/changed sessions and refreshes the metrics snapshot.

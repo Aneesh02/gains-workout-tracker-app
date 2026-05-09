@@ -179,7 +179,12 @@ class GitHubSyncService {
           .timeout(const Duration(seconds: 30));
 
       if (deleteRes.statusCode != 200) {
-        throw Exception('DELETE failed (${deleteRes.statusCode}): ${deleteRes.body}');
+        String errMsg = 'HTTP ${deleteRes.statusCode}';
+        try {
+          final body = jsonDecode(deleteRes.body) as Map<String, dynamic>;
+          errMsg = (body['message'] as String?) ?? errMsg;
+        } catch (_) {}
+        throw Exception('GitHub delete: $errMsg (${deleteRes.statusCode})');
       }
       return null;
     } catch (e) {
@@ -291,6 +296,31 @@ class GitHubSyncService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return (data['content'] as Map<String, dynamic>)['sha'] as String;
     }
-    throw Exception('GitHub PUT failed (${res.statusCode}): ${res.body}');
+
+    // 422 = file already exists but we supplied no SHA (getFileSha had a network blip).
+    // Fetch the live SHA and retry once.
+    if (res.statusCode == 422 && existingSha == null) {
+      final liveSha =
+          await getFileSha(owner: owner, repo: repo, branch: branch, path: path);
+      if (liveSha != null) {
+        return putFile(
+          owner: owner,
+          repo: repo,
+          branch: branch,
+          path: path,
+          content: content,
+          existingSha: liveSha,
+          commitMessage: commitMessage,
+        );
+      }
+    }
+
+    // Extract the human-readable message GitHub always includes in error bodies.
+    String errMsg = 'HTTP ${res.statusCode}';
+    try {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      errMsg = (body['message'] as String?) ?? errMsg;
+    } catch (_) {}
+    throw Exception('GitHub: $errMsg (${res.statusCode})');
   }
 }
