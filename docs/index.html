@@ -255,6 +255,7 @@
   <span class="logo">Gains</span>
   <div class="nav-links">
     <a href="#features">Features</a>
+    <a href="#guide">Guide</a>
     <a href="#sync">GitHub Sync</a>
     <a href="https://github.com/Aneesh02/gains-workout-tracker-app">Source</a>
   </div>
@@ -335,11 +336,11 @@
 <div class="sync-section" id="sync">
   <div>
     <h2>Your workouts live in your GitHub repo.</h2>
-    <p>Sign in with GitHub OAuth — no manual tokens. Pick an existing repo or create one in the app. Every workout syncs as a readable markdown file.</p>
+    <p>Connect with a fine-grained personal access token scoped only to your workout repo. Pick an existing repo or create one in the app. Every workout syncs as a readable markdown file.</p>
     <ul class="step-list">
       <li><span class="step-num">1</span> Tap Connect GitHub in Settings</li>
-      <li><span class="step-num">2</span> Authorize in your browser with a one-time code</li>
-      <li><span class="step-num">3</span> Pick a repo or create one — the app handles the rest</li>
+      <li><span class="step-num">2</span> Create a fine-grained token on GitHub (scoped to one repo)</li>
+      <li><span class="step-num">3</span> Paste the token — pick a repo or create one in-app</li>
     </ul>
   </div>
   <div class="code-block">
@@ -358,6 +359,148 @@ prs: [Bench Press]
 | 3   | 90 kg  | 4    | 9   |
   </div>
 </div>
+
+<!-- How to use -->
+<section class="section" id="guide">
+  <div class="section-label">Getting started</div>
+  <h2 class="section-title">How to use Gains</h2>
+
+  <div style="max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:48px;">
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        🏋️ Logging a workout
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap the <strong style="color:var(--text)">Workout</strong> tab (centre of the bottom bar).</li>
+        <li>Tap <strong style="color:var(--text)">Start Empty Workout</strong> or choose one of your saved templates.</li>
+        <li>Tap <strong style="color:var(--text)">+ Add Exercise</strong> and search for an exercise — over 300 are built in, or create your own.</li>
+        <li>For each set, type the weight and reps using the custom keypad that slides up.</li>
+        <li>Tap the <strong style="color:var(--text)">checkmark</strong> to mark a set complete. The row turns green and the rest timer starts automatically.</li>
+        <li>Repeat for all sets and exercises.</li>
+        <li>Tap <strong style="color:var(--text)">Finish</strong> (top right) when you're done. Your workout is saved and any new personal records are flagged.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        ⏱️ Rest timer
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>The timer starts automatically after you complete a set.</li>
+        <li>Use the <strong style="color:var(--text)">−30s / +30s</strong> buttons to adjust on the fly.</li>
+        <li>Tap the timer display to change the default rest duration for that exercise.</li>
+        <li>The timer rings when rest is over — you can silence it in your phone's settings.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        📊 RPE (Rate of Perceived Exertion)
+      </h3>
+      <p style="color:var(--muted); font-size:0.92rem; line-height:1.8; margin-bottom:12px;">
+        RPE is optional — it lets you track how hard a set felt on a scale of 6–10.
+      </p>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap the <strong style="color:var(--text)">RPE</strong> button (small label at the end of a set row) to open the picker.</li>
+        <li>Select a value from 6 to 10 in 0.5 increments. Swipe the row if all options don't fit.</li>
+        <li>RPE is shown in your workout history and exported to CSV.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        📚 Workout history & editing
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>The <strong style="color:var(--text)">History</strong> tab shows all past sessions grouped by date.</li>
+        <li>Tap any session to see full details — every set, weight, and PR.</li>
+        <li>Tap the <strong style="color:var(--text)">edit icon</strong> inside a session to correct weights, reps, or notes after the fact.</li>
+        <li>Swipe left on a session card to delete it.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        📈 Progress & metrics
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Tap the <strong style="color:var(--text)">Metrics</strong> tab (far right) for an overview of your training trends, volume, consistency score, and push/pull balance.</li>
+        <li>Tap any exercise in the <strong style="color:var(--text)">Exercises</strong> tab to see its progress chart — volume, estimated 1RM, and full set history.</li>
+        <li>Your all-time <strong style="color:var(--text)">Personal Records</strong> are listed on the Profile tab.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        🔔 Smart reminders
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Go to <strong style="color:var(--text)">Profile → Settings → Reminders</strong> and toggle reminders on.</li>
+        <li>Grant notification permission when prompted.</li>
+        <li>Tap the tile to pick your preferred reminder time.</li>
+        <li>Gains sends up to 3 smart notifications per day — one fixed morning nudge (9 AM), one at your chosen time, and one evening wrap-up after 8:30 PM. Content adapts to whether you've worked out yet: pre-workout messages nudge lagging muscles or flag streak risk; post-workout messages suggest recovery and tomorrow's targets.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        🐙 GitHub sync setup
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Go to <strong style="color:var(--text)">Profile → Settings → Connect GitHub</strong>.</li>
+        <li>Tap <strong style="color:var(--text)">Open GitHub → Create Token</strong> — this takes you to github.com to create a fine-grained personal access token.</li>
+        <li>Set token type to <strong style="color:var(--text)">Fine-grained</strong>, expiration to your preference, and grant <strong style="color:var(--text)">Contents: Read and Write</strong> on a single repo.</li>
+        <li>Copy the token, paste it back into Gains, then tap <strong style="color:var(--text)">Validate</strong>.</li>
+        <li>Pick an existing repo or tap <strong style="color:var(--text)">Create new repo</strong> — the app creates it automatically.</li>
+        <li>From now on, every completed workout syncs as a markdown file to your repo.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        📤 Exporting your data
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Go to <strong style="color:var(--text)">Profile → Settings → Export Workouts</strong>.</li>
+        <li>A CSV is generated and shared via your phone's share sheet — save it to Google Drive, email it, or open it in any spreadsheet app.</li>
+        <li>The CSV includes every set: date, workout name, exercise, weight, reps, RPE, and notes.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        🔄 Trying the app with sample data
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li>Go to the <strong style="color:var(--text)">History</strong> tab — if it's empty, tap <strong style="color:var(--text)">Load sample data</strong>. The same button appears as a banner on the Workout tab for new users.</li>
+        <li>10 pre-built sessions (Push, Pull, Legs over 5 weeks) are loaded instantly — all charts, PRs, and metrics populate.</li>
+        <li>When you're ready to start fresh, go to <strong style="color:var(--text)">Profile → Settings → Reset all data</strong>.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        ⚙️ App preferences
+      </h3>
+      <ol style="color:var(--muted); font-size:0.92rem; line-height:2; padding-left:20px;">
+        <li><strong style="color:var(--text)">Sounds</strong> — toggle all in-app sounds (rest timer bell, PR chime) on or off under <strong style="color:var(--text)">Profile → Settings → App → Sounds</strong>.</li>
+        <li><strong style="color:var(--text)">Keep screen on</strong> — prevents your screen from sleeping while a workout is active. Toggle under <strong style="color:var(--text)">Profile → Settings → App → Keep screen on during workout</strong>.</li>
+        <li><strong style="color:var(--text)">Day starts at</strong> — controls when the streak counter rolls over to the next day. Default is 4 AM. Tap the tile to change it.</li>
+      </ol>
+    </div>
+
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(--text);">
+        🐛 Reporting a bug
+      </h3>
+      <p style="color:var(--muted); font-size:0.92rem; line-height:1.8;">
+        Go to <strong style="color:var(--text)">Profile → Settings → Support → Report a bug</strong>. This opens a pre-addressed email in your default mail app. Describe what happened and tap Send — your report goes straight to the developer.
+      </p>
+    </div>
+
+  </div>
+</section>
 
 <!-- Tech stack -->
 <section class="section" style="text-align:center; padding-top: 0;">

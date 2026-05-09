@@ -111,6 +111,8 @@ class WorkoutTabScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (context.watch<WorkoutProvider>().history.isEmpty)
+                  _NewUserBanner(provider: context.read<WorkoutProvider>()),
                 _DashboardSection(provider: context.watch<WorkoutProvider>()),
                 const SizedBox(height: 24),
                 const Text('Quick start',
@@ -377,6 +379,62 @@ class _DashboardSection extends StatelessWidget {
         const SizedBox(height: 12),
         _MuscleBreakdownCard(weeklySets: weeklySets),
       ],
+    );
+  }
+}
+
+class _NewUserBanner extends StatelessWidget {
+  final WorkoutProvider provider;
+  const _NewUserBanner({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.waving_hand_outlined, color: AppColors.blue, size: 18),
+              SizedBox(width: 8),
+              Text('Welcome to Gains!',
+                  style: TextStyle(
+                      color: AppColors.blue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Load sample data to explore charts, streaks, PRs, and all features — then reset when you\'re ready to go for real.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => provider.seedMockData(),
+              icon: const Icon(Icons.dataset_outlined, size: 16),
+              label: const Text('Load sample data'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.blue,
+                side: const BorderSide(color: AppColors.blue),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

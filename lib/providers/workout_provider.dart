@@ -15,6 +15,7 @@ import '../models/workout_template.dart';
 import '../data/exercise_data.dart';
 import '../models/sync_state.dart';
 import '../services/csv_import_service.dart';
+import '../services/sound_service.dart';
 import '../services/github_sync_service.dart';
 import '../services/metrics_markdown_service.dart';
 import '../services/workout_markdown_service.dart';
@@ -132,6 +133,13 @@ class WorkoutProvider extends ChangeNotifier {
   int get weeklyTargetDays => _weeklyTargetDays;
   int get weekStartDay => _weekStartDay;
   GymSettings get gymSettings => _gymSettings;
+
+  bool workedOutToday(int dayStartHour) {
+    if (_history.isEmpty) return false;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day, dayStartHour);
+    return _history.any((s) => s.startTime.isAfter(todayStart));
+  }
   Map<String, SessionSyncRecord> get syncRecords => Map.unmodifiable(_syncRecords);
 
   WorkoutProvider(this._box, this._syncBox) {
@@ -223,6 +231,10 @@ class WorkoutProvider extends ChangeNotifier {
       } catch (_) {
         _gymSettings = GymSettings.defaults;
       }
+    }
+
+    if (_box.get('defaultTemplatesSeeded') == null) {
+      _seedDefaultTemplates();
     }
   }
 
@@ -743,6 +755,91 @@ class WorkoutProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _seedDefaultTemplates() {
+    final now = DateTime.now();
+    int order = 0;
+
+    WorkoutTemplate mkTemplate(String name, List<TemplateExercise> exs) =>
+        WorkoutTemplate(
+          id: _uuid.v4(),
+          name: name,
+          createdAt: now.subtract(Duration(seconds: order++ * 5)),
+          exercises: exs,
+        );
+
+    TemplateExercise mkEx(String id, String name, String muscle,
+            {int sets = 3, int rest = 90}) =>
+        TemplateExercise(
+            exerciseId: id,
+            exerciseName: name,
+            muscleGroup: muscle,
+            setCount: sets,
+            restSeconds: rest);
+
+    _templates.addAll([
+      mkTemplate('StrongLifts 5×5 – Workout A', [
+        mkEx('squat_barbell', 'Squat (Barbell)', 'Legs', sets: 5, rest: 180),
+        mkEx('bench_press_barbell', 'Bench Press (Barbell)', 'Chest', sets: 5, rest: 180),
+        mkEx('barbell_row', 'Bent Over Row (Barbell)', 'Back', sets: 5, rest: 180),
+      ]),
+      mkTemplate('StrongLifts 5×5 – Workout B', [
+        mkEx('squat_barbell', 'Squat (Barbell)', 'Legs', sets: 5, rest: 180),
+        mkEx('overhead_press_barbell', 'Overhead Press (Barbell)', 'Shoulders', sets: 5, rest: 180),
+        mkEx('deadlift', 'Deadlift (Barbell)', 'Back', sets: 1, rest: 240),
+      ]),
+      mkTemplate('PPL – Push', [
+        mkEx('bench_press_barbell', 'Bench Press (Barbell)', 'Chest', sets: 4, rest: 150),
+        mkEx('incline_bench_press_dumbbell', 'Incline Bench Press (Dumbbell)', 'Chest', sets: 3, rest: 90),
+        mkEx('overhead_press_barbell', 'Overhead Press (Barbell)', 'Shoulders', sets: 3, rest: 120),
+        mkEx('lateral_raise_dumbbell', 'Lateral Raise (Dumbbell)', 'Shoulders', sets: 4, rest: 60),
+        mkEx('triceps_pushdown_cable', 'Triceps Pushdown (Cable - Straight Bar)', 'Arms', sets: 3, rest: 60),
+        mkEx('skull_crusher', 'Skullcrusher (Barbell)', 'Arms', sets: 3, rest: 60),
+      ]),
+      mkTemplate('PPL – Pull', [
+        mkEx('deadlift', 'Deadlift (Barbell)', 'Back', sets: 3, rest: 180),
+        mkEx('barbell_row', 'Bent Over Row (Barbell)', 'Back', sets: 4, rest: 120),
+        mkEx('lat_pulldown', 'Lat Pulldown (Cable)', 'Back', sets: 3, rest: 90),
+        mkEx('face_pull', 'Face Pull (Cable)', 'Back', sets: 3, rest: 60),
+        mkEx('bicep_curl_barbell', 'Bicep Curl (Barbell)', 'Arms', sets: 3, rest: 60),
+        mkEx('hammer_curl', 'Hammer Curl (Dumbbell)', 'Arms', sets: 3, rest: 60),
+      ]),
+      mkTemplate('PPL – Legs', [
+        mkEx('squat_barbell', 'Squat (Barbell)', 'Legs', sets: 4, rest: 150),
+        mkEx('romanian_deadlift', 'Romanian Deadlift (Barbell)', 'Legs', sets: 3, rest: 120),
+        mkEx('leg_press', 'Leg Press', 'Legs', sets: 3, rest: 90),
+        mkEx('leg_extension', 'Leg Extension (Machine)', 'Legs', sets: 3, rest: 60),
+        mkEx('leg_curl_machine', 'Lying Leg Curl (Machine)', 'Legs', sets: 3, rest: 60),
+        mkEx('calf_raise_machine', 'Standing Calf Raise (Machine)', 'Legs', sets: 4, rest: 60),
+      ]),
+      mkTemplate('Upper Body', [
+        mkEx('bench_press_barbell', 'Bench Press (Barbell)', 'Chest', sets: 4, rest: 120),
+        mkEx('barbell_row', 'Bent Over Row (Barbell)', 'Back', sets: 4, rest: 120),
+        mkEx('overhead_press_barbell', 'Overhead Press (Barbell)', 'Shoulders', sets: 3, rest: 90),
+        mkEx('lat_pulldown', 'Lat Pulldown (Cable)', 'Back', sets: 3, rest: 90),
+        mkEx('bicep_curl_barbell', 'Bicep Curl (Barbell)', 'Arms', sets: 3, rest: 60),
+        mkEx('triceps_pushdown_cable', 'Triceps Pushdown (Cable - Straight Bar)', 'Arms', sets: 3, rest: 60),
+      ]),
+      mkTemplate('Lower Body', [
+        mkEx('squat_barbell', 'Squat (Barbell)', 'Legs', sets: 4, rest: 150),
+        mkEx('romanian_deadlift', 'Romanian Deadlift (Barbell)', 'Legs', sets: 3, rest: 120),
+        mkEx('leg_press', 'Leg Press', 'Legs', sets: 3, rest: 90),
+        mkEx('leg_extension', 'Leg Extension (Machine)', 'Legs', sets: 3, rest: 60),
+        mkEx('leg_curl_machine', 'Lying Leg Curl (Machine)', 'Legs', sets: 3, rest: 60),
+        mkEx('hip_thrust_barbell', 'Hip Thrust (Barbell)', 'Legs', sets: 3, rest: 90),
+      ]),
+      mkTemplate('Full Body', [
+        mkEx('squat_barbell', 'Squat (Barbell)', 'Legs', sets: 3, rest: 150),
+        mkEx('bench_press_barbell', 'Bench Press (Barbell)', 'Chest', sets: 3, rest: 120),
+        mkEx('barbell_row', 'Bent Over Row (Barbell)', 'Back', sets: 3, rest: 120),
+        mkEx('overhead_press_barbell', 'Overhead Press (Barbell)', 'Shoulders', sets: 3, rest: 90),
+        mkEx('deadlift', 'Deadlift (Barbell)', 'Back', sets: 1, rest: 240),
+      ]),
+    ]);
+
+    _box.put('defaultTemplatesSeeded', true);
+    _save();
+  }
+
   // ── Milestones ────────────────────────────────────────────────────────────
 
   static const _milestoneWorkoutCounts = [1, 10, 25, 50, 100, 250, 500];
@@ -769,6 +866,7 @@ class WorkoutProvider extends ChangeNotifier {
   void dismissMilestone(String key) {
     _seenMilestones.add(key);
     _box.put('seenMilestones', jsonEncode(_seenMilestones.toList()));
+    notifyListeners();
   }
 
   // ── Settings ──────────────────────────────────────────────────────────────
@@ -789,6 +887,7 @@ class WorkoutProvider extends ChangeNotifier {
   void updateGymSettings(GymSettings settings) {
     _gymSettings = settings;
     _box.put('gymSettings', jsonEncode(settings.toJson()));
+    SoundService.enabled = settings.soundsEnabled;
     notifyListeners();
   }
 
@@ -1511,51 +1610,218 @@ class WorkoutProvider extends ChangeNotifier {
     return flags;
   }
 
-  // ── One-time history seed ─────────────────────────────────────────────────
+  // ── Mock data seed ────────────────────────────────────────────────────────
 
-  Future<void> seedFromAsset() async {
-    if (_box.get('historySeedDone_v2') == true) return;
-    try {
-      final csv = await rootBundle.loadString('assets/strong_seed.csv');
-      final jsonList = await compute(parseCsvBackground, csv);
-      final sessions =
-          jsonList.map((j) => WorkoutSession.fromJson(j)).toList();
-      _history.clear();
-      _prRecords.clear();
-      for (final e in _exercises) {
-        e.timesPerformed = 0;
+  void seedMockData() {
+    const uuid = Uuid();
+    final now = DateTime.now();
+
+    DateTime ago(int days, {int hour = 10, int minute = 0}) =>
+        DateTime(now.year, now.month, now.day - days, hour, minute);
+
+    // Look up an exercise by partial name, fall back to an inline placeholder.
+    WorkoutExercise mockEx(String search, String fallbackName,
+        String fallbackMuscle, List<SetEntry> sets) {
+      Exercise found;
+      try {
+        found = _exercises.firstWhere(
+          (e) => e.name.toLowerCase().contains(search.toLowerCase()),
+        );
+      } catch (_) {
+        found = Exercise(
+            id: 'mock_${search.hashCode}',
+            name: fallbackName,
+            muscleGroup: fallbackMuscle);
       }
-      final existingTimes = <DateTime>{};
-      for (final session in sessions) {
-        if (!existingTimes.add(session.startTime)) continue;
-        for (final ex in session.exercises) {
-          final found = _exercises.firstWhere(
-            (e) => e.id == ex.exerciseId,
-            orElse: () => Exercise(id: '', name: '', muscleGroup: ''),
-          );
-          if (found.id.isNotEmpty) found.timesPerformed++;
-          for (final set in ex.sets
-              .where((s) => s.completed && s.weight != null && s.reps != null)) {
-            final e1rm = set.weight! * (1 + set.reps! / 30.0);
-            final existing = _prRecords[ex.exerciseId];
-            if (existing == null || e1rm > existing.e1rm) {
-              _prRecords[ex.exerciseId] = PrRecord(
-                e1rm: e1rm,
-                weight: set.weight!,
-                reps: set.reps!,
-                date: session.startTime,
-              );
-            }
+      return WorkoutExercise(
+        exerciseId: found.id,
+        exerciseName: found.name,
+        muscleGroup: found.muscleGroup.isEmpty ? fallbackMuscle : found.muscleGroup,
+        sets: sets,
+      );
+    }
+
+    SetEntry s(double w, int r, {double? rpe, int num = 1}) => SetEntry(
+          setNumber: num,
+          weightInput: w % 1 == 0 ? w.toInt().toString() : w.toString(),
+          repsInput: r.toString(),
+          rpe: rpe,
+          completed: true,
+        );
+
+    final sessions = <WorkoutSession>[
+      WorkoutSession(
+        id: uuid.v4(), name: 'Push Day',
+        startTime: ago(35), endTime: ago(35, hour: 11, minute: 10),
+        exercises: [
+          mockEx('Bench Press', 'Bench Press (Barbell)', 'Chest',
+              [s(60, 10, num: 1), s(70, 8, num: 2), s(75, 6, rpe: 8, num: 3)]),
+          mockEx('Overhead Press', 'Overhead Press (Barbell)', 'Shoulders',
+              [s(40, 10, num: 1), s(45, 8, num: 2), s(47.5, 6, num: 3)]),
+          mockEx('Tricep Pushdown', 'Tricep Pushdown (Cable)', 'Arms',
+              [s(25, 12, num: 1), s(27.5, 12, num: 2), s(30, 10, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Pull Day',
+        startTime: ago(33), endTime: ago(33, hour: 11, minute: 5),
+        exercises: [
+          mockEx('Barbell Row', 'Barbell Row', 'Back',
+              [s(60, 10, num: 1), s(65, 8, num: 2), s(70, 6, num: 3)]),
+          mockEx('Lat Pulldown', 'Lat Pulldown (Cable)', 'Back',
+              [s(55, 12, num: 1), s(60, 10, num: 2), s(65, 8, num: 3)]),
+          mockEx('Bicep Curl', 'Bicep Curl (Barbell)', 'Arms',
+              [s(30, 12, num: 1), s(32.5, 10, num: 2), s(35, 8, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Leg Day',
+        startTime: ago(31), endTime: ago(31, hour: 11, minute: 20),
+        exercises: [
+          mockEx('Squat', 'Squat (Barbell)', 'Legs',
+              [s(80, 10, num: 1), s(90, 8, num: 2), s(100, 6, rpe: 8, num: 3)]),
+          mockEx('Leg Press', 'Leg Press', 'Legs',
+              [s(120, 12, num: 1), s(140, 10, num: 2), s(160, 8, num: 3)]),
+          mockEx('Romanian Deadlift', 'Romanian Deadlift (Barbell)', 'Legs',
+              [s(60, 10, num: 1), s(65, 10, num: 2), s(70, 8, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Push Day',
+        startTime: ago(28), endTime: ago(28, hour: 11, minute: 15),
+        exercises: [
+          mockEx('Bench Press', 'Bench Press (Barbell)', 'Chest',
+              [s(62.5, 10, num: 1), s(72.5, 8, num: 2), s(77.5, 6, rpe: 8, num: 3)]),
+          mockEx('Overhead Press', 'Overhead Press (Barbell)', 'Shoulders',
+              [s(42.5, 10, num: 1), s(47.5, 8, num: 2), s(50, 5, num: 3)]),
+          mockEx('Incline Bench Press', 'Bench Press (Barbell)', 'Chest',
+              [s(55, 10, num: 1), s(60, 8, num: 2), s(65, 6, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Pull Day',
+        startTime: ago(25), endTime: ago(25, hour: 11, minute: 0),
+        exercises: [
+          mockEx('Barbell Row', 'Barbell Row', 'Back',
+              [s(62.5, 10, num: 1), s(67.5, 8, num: 2), s(72.5, 6, num: 3)]),
+          mockEx('Lat Pulldown', 'Lat Pulldown (Cable)', 'Back',
+              [s(60, 12, num: 1), s(65, 10, num: 2), s(70, 8, num: 3)]),
+          mockEx('Bicep Curl', 'Bicep Curl (Barbell)', 'Arms',
+              [s(32.5, 12, num: 1), s(35, 10, num: 2), s(37.5, 8, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Upper Body',
+        startTime: ago(21), endTime: ago(21, hour: 11, minute: 30),
+        exercises: [
+          mockEx('Bench Press', 'Bench Press (Barbell)', 'Chest',
+              [s(65, 10, num: 1), s(75, 8, num: 2), s(80, 6, rpe: 9, num: 3)]),
+          mockEx('Barbell Row', 'Barbell Row', 'Back',
+              [s(65, 10, num: 1), s(70, 8, num: 2), s(75, 6, num: 3)]),
+          mockEx('Overhead Press', 'Overhead Press (Barbell)', 'Shoulders',
+              [s(45, 10, num: 1), s(50, 8, num: 2), s(52.5, 5, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Leg Day',
+        startTime: ago(17), endTime: ago(17, hour: 11, minute: 25),
+        exercises: [
+          mockEx('Squat', 'Squat (Barbell)', 'Legs',
+              [s(85, 10, num: 1), s(95, 8, num: 2), s(105, 6, rpe: 9, num: 3)]),
+          mockEx('Deadlift', 'Deadlift (Barbell)', 'Back',
+              [s(100, 5, num: 1), s(110, 5, num: 2), s(120, 3, rpe: 9, num: 3)]),
+          mockEx('Leg Press', 'Leg Press', 'Legs',
+              [s(140, 12, num: 1), s(160, 10, num: 2), s(180, 8, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Push Day',
+        startTime: ago(14), endTime: ago(14, hour: 11, minute: 10),
+        exercises: [
+          mockEx('Bench Press', 'Bench Press (Barbell)', 'Chest',
+              [s(67.5, 10, num: 1), s(77.5, 8, num: 2), s(82.5, 5, rpe: 9, num: 3)]),
+          mockEx('Overhead Press', 'Overhead Press (Barbell)', 'Shoulders',
+              [s(45, 10, num: 1), s(50, 8, num: 2), s(55, 5, num: 3)]),
+          mockEx('Tricep Pushdown', 'Tricep Pushdown (Cable)', 'Arms',
+              [s(30, 12, num: 1), s(32.5, 12, num: 2), s(35, 10, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Pull Day',
+        startTime: ago(10), endTime: ago(10, hour: 11, minute: 5),
+        exercises: [
+          mockEx('Barbell Row', 'Barbell Row', 'Back',
+              [s(67.5, 10, num: 1), s(72.5, 8, num: 2), s(77.5, 5, rpe: 9, num: 3)]),
+          mockEx('Lat Pulldown', 'Lat Pulldown (Cable)', 'Back',
+              [s(65, 12, num: 1), s(70, 10, num: 2), s(75, 8, num: 3)]),
+          mockEx('Bicep Curl', 'Bicep Curl (Barbell)', 'Arms',
+              [s(35, 12, num: 1), s(37.5, 10, num: 2), s(40, 8, num: 3)]),
+        ],
+      ),
+      WorkoutSession(
+        id: uuid.v4(), name: 'Leg Day',
+        startTime: ago(5), endTime: ago(5, hour: 11, minute: 35),
+        exercises: [
+          mockEx('Squat', 'Squat (Barbell)', 'Legs',
+              [s(87.5, 10, num: 1), s(97.5, 8, num: 2), s(107.5, 5, rpe: 9, num: 3)]),
+          mockEx('Romanian Deadlift', 'Romanian Deadlift (Barbell)', 'Legs',
+              [s(65, 10, num: 1), s(70, 10, num: 2), s(75, 8, num: 3)]),
+          mockEx('Leg Press', 'Leg Press', 'Legs',
+              [s(150, 12, num: 1), s(170, 10, num: 2), s(190, 8, num: 3)]),
+        ],
+      ),
+    ];
+
+    _history.clear();
+    _prRecords.clear();
+    for (final e in _exercises) e.timesPerformed = 0;
+
+    for (final session in sessions) {
+      for (final ex in session.exercises) {
+        final found = _exercises.firstWhere(
+          (e) => e.id == ex.exerciseId,
+          orElse: () => Exercise(id: '', name: '', muscleGroup: ''),
+        );
+        if (found.id.isNotEmpty) found.timesPerformed++;
+        for (final set
+            in ex.sets.where((s) => s.completed && s.weight != null && s.reps != null)) {
+          final e1rm = set.weight! * (1 + set.reps! / 30.0);
+          final existing = _prRecords[ex.exerciseId];
+          if (existing == null || e1rm > existing.e1rm) {
+            _prRecords[ex.exerciseId] = PrRecord(
+              e1rm: e1rm,
+              weight: set.weight!,
+              reps: set.reps!,
+              date: session.startTime,
+            );
           }
         }
-        _history.add(session);
       }
-      _history.sort((a, b) => b.startTime.compareTo(a.startTime));
-      _save();
-      notifyListeners();
-      _box.put('historySeedDone_v2', true);
-      _box.delete('historySeedDone');
-    } catch (_) {}
+      _history.add(session);
+    }
+
+    _history.sort((a, b) => b.startTime.compareTo(a.startTime));
+    _save();
+    notifyListeners();
+  }
+
+  // ── Reset all workout data ────────────────────────────────────────────────
+
+  void resetAllData() {
+    _history.clear();
+    _prRecords.clear();
+    _templates.clear();
+    _seenMilestones.clear();
+    _exerciseRestSeconds.clear();
+    for (final e in _exercises) e.timesPerformed = 0;
+    _box.delete('history');
+    _box.delete('prVolumes');
+    _box.delete('timesPerformed');
+    _box.delete('templates');
+    _box.delete('seenMilestones');
+    _box.delete('exerciseRestSeconds');
+    _box.delete('historySeedDone_v2');
+    notifyListeners();
   }
 
   // ── CSV Import ─────────────────────────────────────────────────────────────

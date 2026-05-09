@@ -1,11 +1,11 @@
 {
-    "name": "strong_clone",
-    "short_name": "strong_clone",
+    "name": "Gains",
+    "short_name": "Gains",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#2A2D35",
+    "theme_color": "#2A2D35",
+    "description": "Gains — workout tracker",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

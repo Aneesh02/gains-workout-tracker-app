@@ -52,13 +52,54 @@ class HistoryScreen extends StatelessWidget {
           ),
         ),
         if (history.isEmpty)
-          const SliverFillRemaining(
+          SliverFillRemaining(
             child: Center(
-              child: Text(
-                'No workouts yet.\nStart your first workout!',
-                textAlign: TextAlign.center,
-                style:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.fitness_center_outlined,
+                        color: AppColors.textSecondary, size: 52),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No workouts yet',
+                      style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Log your first session from the Workout tab, or load sample data to explore all features.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 14),
+                    ),
+                    const SizedBox(height: 28),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          context.read<WorkoutProvider>().seedMockData(),
+                      icon: const Icon(Icons.dataset_outlined, size: 18),
+                      label: const Text('Load sample data'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.blue,
+                        side: const BorderSide(color: AppColors.blue),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '10 sample sessions · all features unlocked',
+                      style: TextStyle(
+                          color: AppColors.textSecondary.withOpacity(0.6),
+                          fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           )

@@ -12,12 +12,22 @@ class GymBar {
 
 class GymSettings {
   List<GymBar> bars;
-  List<double> plates; // available plate weights (kg)
+  List<double> plates;
   String obsidianVaultPath;
   String githubOwner;
   String githubRepo;
   String githubBranch;
   String githubUsername;
+
+  // Day & Time
+  int dayStartHour;
+  bool remindersEnabled;
+  int reminderHour;
+  int reminderMinute;
+
+  // App behaviour
+  bool soundsEnabled;
+  bool keepScreenOn;
 
   GymSettings({
     required this.bars,
@@ -27,6 +37,12 @@ class GymSettings {
     this.githubRepo = '',
     this.githubBranch = 'main',
     this.githubUsername = '',
+    this.dayStartHour = 4,
+    this.remindersEnabled = false,
+    this.reminderHour = 18,
+    this.reminderMinute = 0,
+    this.soundsEnabled = true,
+    this.keepScreenOn = true,
   });
 
   GymSettings copyWith({
@@ -37,6 +53,12 @@ class GymSettings {
     String? githubRepo,
     String? githubBranch,
     String? githubUsername,
+    int? dayStartHour,
+    bool? remindersEnabled,
+    int? reminderHour,
+    int? reminderMinute,
+    bool? soundsEnabled,
+    bool? keepScreenOn,
   }) =>
       GymSettings(
         bars: bars ?? this.bars,
@@ -46,6 +68,12 @@ class GymSettings {
         githubRepo: githubRepo ?? this.githubRepo,
         githubBranch: githubBranch ?? this.githubBranch,
         githubUsername: githubUsername ?? this.githubUsername,
+        dayStartHour: dayStartHour ?? this.dayStartHour,
+        remindersEnabled: remindersEnabled ?? this.remindersEnabled,
+        reminderHour: reminderHour ?? this.reminderHour,
+        reminderMinute: reminderMinute ?? this.reminderMinute,
+        soundsEnabled: soundsEnabled ?? this.soundsEnabled,
+        keepScreenOn: keepScreenOn ?? this.keepScreenOn,
       );
 
   static GymSettings get defaults => GymSettings(
@@ -68,6 +96,12 @@ class GymSettings {
         'githubRepo': githubRepo,
         'githubBranch': githubBranch,
         'githubUsername': githubUsername,
+        'dayStartHour': dayStartHour,
+        'remindersEnabled': remindersEnabled,
+        'reminderHour': reminderHour,
+        'reminderMinute': reminderMinute,
+        'soundsEnabled': soundsEnabled,
+        'keepScreenOn': keepScreenOn,
       };
 
   factory GymSettings.fromJson(Map<String, dynamic> j) => GymSettings(
@@ -80,5 +114,11 @@ class GymSettings {
         githubRepo: j['githubRepo'] as String? ?? '',
         githubBranch: j['githubBranch'] as String? ?? 'main',
         githubUsername: j['githubUsername'] as String? ?? '',
+        dayStartHour: j['dayStartHour'] as int? ?? 4,
+        remindersEnabled: j['remindersEnabled'] as bool? ?? false,
+        reminderHour: j['reminderHour'] as int? ?? 18,
+        reminderMinute: j['reminderMinute'] as int? ?? 0,
+        soundsEnabled: j['soundsEnabled'] as bool? ?? true,
+        keepScreenOn: j['keepScreenOn'] as bool? ?? true,
       );
 }

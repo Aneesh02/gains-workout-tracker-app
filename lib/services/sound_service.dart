@@ -5,7 +5,10 @@ class SoundService {
   factory SoundService() => _instance;
   SoundService._();
 
+  static bool enabled = true;
+
   Future<void> _play(String file) async {
+    if (!enabled) return;
     try {
       final p = AudioPlayer();
       await p.play(AssetSource('sounds/$file'));

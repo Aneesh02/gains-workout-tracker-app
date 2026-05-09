@@ -1,4 +1,4 @@
-package com.aneesh.strong_clone
+package com.gains.app
 
 import io.flutter.embedding.android.FlutterActivity
 

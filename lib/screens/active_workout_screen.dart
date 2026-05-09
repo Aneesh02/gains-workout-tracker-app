@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/github_sync_service.dart';
 import '../services/metrics_markdown_service.dart';
+import '../services/notification_service.dart';
 import '../services/obsidian_export_service.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/sound_service.dart';
 import '../providers/workout_provider.dart';
 import '../models/workout_exercise.dart';
@@ -52,6 +54,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   @override
   void initState() {
     super.initState();
+    final keepOn = context.read<WorkoutProvider>().gymSettings.keepScreenOn;
+    if (keepOn) WakelockPlus.enable();
     // Timer only touches ValueNotifier — no setState, no full rebuilds.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -78,6 +82,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     _restNotifier.dispose();
     _scroll.dispose();
     _keyboard.dispose();
+    WakelockPlus.disable();
     super.dispose();
   }
 
@@ -430,6 +435,9 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
 
     // Both exports run in background after navigation — never block the UI
     final settings = p.gymSettings;
+
+    // Reschedule notifications — switches pre-workout slots to post-workout content.
+    NotificationService.reschedule(p, settings);
 
     final Future<String?> obsidianFuture = settings.obsidianVaultPath.isNotEmpty
         ? ObsidianExportService.exportToVault(session, settings.obsidianVaultPath)
@@ -1174,37 +1182,41 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: rpeOptions.map((v) {
-                  final label = v % 1 == 0 ? v.toInt().toString() : v.toString();
-                  final selected = currentRpe == v;
-                  return GestureDetector(
-                    onTap: () {
-                      context.read<WorkoutProvider>().updateSetRpe(exIdx, setIdx, v);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 56,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: selected ? AppColors.blue : AppColors.background,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: selected ? AppColors.blue : AppColors.divider,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: rpeOptions.map((v) {
+                    final label = v % 1 == 0 ? v.toInt().toString() : v.toString();
+                    final selected = currentRpe == v;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () {
+                          context.read<WorkoutProvider>().updateSetRpe(exIdx, setIdx, v);
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          width: 52,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: selected ? AppColors.blue : AppColors.background,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: selected ? AppColors.blue : AppColors.divider,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(label,
+                              style: TextStyle(
+                                color: selected ? Colors.white : AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              )),
                         ),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(label,
-                          style: TextStyle(
-                            color: selected ? Colors.white : AppColors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          )),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ],
           ),

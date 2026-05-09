@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'providers/workout_provider.dart';
+import 'services/notification_service.dart';
+import 'services/sound_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/workout_tab_screen.dart';
 import 'screens/history_screen.dart';
@@ -14,6 +16,7 @@ import 'screens/metrics_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+  await NotificationService.init();
   final box = await Hive.openBox('strongclone');
   final syncBox = await Hive.openBox('syncstate');
   final provider = WorkoutProvider(box, syncBox);
@@ -23,8 +26,10 @@ void main() async {
       child: const MyApp(),
     ),
   );
-  // Seed history after the app is running — background isolate, non-blocking.
-  provider.seedFromAsset();
+  // Apply persisted app-behaviour settings.
+  final settings = provider.gymSettings;
+  SoundService.enabled = settings.soundsEnabled;
+  NotificationService.reschedule(provider, settings);
 }
 
 class MyApp extends StatelessWidget {

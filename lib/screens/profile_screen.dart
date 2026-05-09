@@ -9,6 +9,8 @@ import '../models/workout_session.dart';
 import '../providers/workout_provider.dart';
 import '../services/csv_export_service.dart';
 import '../services/github_sync_service.dart';
+import '../services/notification_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'exercise_detail_screen.dart';
 import 'github_connect_screen.dart';
@@ -568,15 +570,36 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           _sectionHeader('Day & Time'),
-          _comingSoonTile(
-            Icons.wb_twilight_outlined,
-            'Day starts at',
-            'Used for training nudges',
+          _dayStartsTile(context, provider),
+          _remindersTile(context, provider),
+          const SizedBox(height: 24),
+          _sectionHeader('App'),
+          _switchTile(
+            context,
+            Icons.volume_up_outlined,
+            'Sounds',
+            'Checkmark, rest timer, and finish sounds',
+            provider.gymSettings.soundsEnabled,
+            (val) => provider.updateGymSettings(
+                provider.gymSettings.copyWith(soundsEnabled: val)),
           ),
-          _comingSoonTile(
-            Icons.notifications_none_outlined,
-            'Reminders',
-            'Push notifications for training days',
+          _switchTile(
+            context,
+            Icons.screen_lock_portrait_outlined,
+            'Keep screen on',
+            'Prevents sleep during active workouts',
+            provider.gymSettings.keepScreenOn,
+            (val) => provider.updateGymSettings(
+                provider.gymSettings.copyWith(keepScreenOn: val)),
+          ),
+          const SizedBox(height: 24),
+          _sectionHeader('Support'),
+          _actionTile(
+            context,
+            Icons.bug_report_outlined,
+            'Report a bug',
+            'Opens an email to the developer',
+            () => _launchBugReport(context),
           ),
           const SizedBox(height: 24),
           _sectionHeader('Integrations — Phase 2'),
@@ -604,6 +627,7 @@ class SettingsScreen extends StatelessWidget {
             'Sync to cloud',
             'Firebase backup — Phase 3',
           ),
+          _ResetDataTile(provider: provider),
           const SizedBox(height: 32),
         ],
       ),
@@ -712,6 +736,213 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // ── Day starts at ──────────────────────────────────────────────────────────
+
+  Widget _dayStartsTile(BuildContext context, WorkoutProvider provider) {
+    final h = provider.gymSettings.dayStartHour;
+    final label = h == 0
+        ? 'Midnight'
+        : h < 12
+            ? '$h:00 AM'
+            : h == 12
+                ? '12:00 PM'
+                : '${h - 12}:00 PM';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 1),
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: ListTile(
+        leading: const Icon(Icons.wb_twilight_outlined,
+            color: AppColors.blue, size: 22),
+        title: const Text('Day starts at',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+        subtitle: Text('Used for training nudges · currently $label',
+            style:
+                const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        trailing:
+            const Icon(Icons.edit_outlined, color: AppColors.textSecondary, size: 18),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        onTap: () => _showDayStartPicker(context, provider),
+      ),
+    );
+  }
+
+  void _showDayStartPicker(BuildContext context, WorkoutProvider provider) {
+    final options = [0, 1, 2, 3, 4, 5, 6];
+    final labels = ['Midnight (12:00 AM)', '1:00 AM', '2:00 AM', '3:00 AM', '4:00 AM', '5:00 AM', '6:00 AM'];
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Day starts at',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text(
+                  'Workouts before this hour count as the previous day.',
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 12),
+              ...List.generate(options.length, (i) {
+                final selected = provider.gymSettings.dayStartHour == options[i];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(labels[i],
+                      style: TextStyle(
+                          color: selected
+                              ? AppColors.blue
+                              : AppColors.textPrimary,
+                          fontSize: 14)),
+                  trailing: selected
+                      ? const Icon(Icons.check, color: AppColors.blue, size: 18)
+                      : null,
+                  onTap: () {
+                    provider.updateGymSettings(provider.gymSettings
+                        .copyWith(dayStartHour: options[i]));
+                    Navigator.pop(ctx);
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Reminders ─────────────────────────────────────────────────────────────
+
+  Widget _remindersTile(BuildContext context, WorkoutProvider provider) {
+    final s = provider.gymSettings;
+    final enabled = s.remindersEnabled;
+    final h = s.reminderHour;
+    final m = s.reminderMinute;
+    final amPm = h < 12 ? 'AM' : 'PM';
+    final displayH = h % 12 == 0 ? 12 : h % 12;
+    final timeLabel = '$displayH:${m.toString().padLeft(2, '0')} $amPm';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 1),
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: ListTile(
+        leading: Icon(
+          enabled
+              ? Icons.notifications_active_outlined
+              : Icons.notifications_none_outlined,
+          color: enabled ? AppColors.blue : AppColors.textSecondary,
+          size: 22,
+        ),
+        title: const Text('Reminders',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+        subtitle: Text(
+          enabled ? 'Daily nudge at $timeLabel' : 'Off',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        trailing: Switch(
+          value: enabled,
+          activeColor: AppColors.blue,
+          onChanged: (val) async {
+            if (val) {
+              final granted = await NotificationService.requestPermission();
+              if (!granted) return;
+            }
+            final newSettings = provider.gymSettings.copyWith(remindersEnabled: val);
+            provider.updateGymSettings(newSettings);
+            NotificationService.reschedule(provider, newSettings);
+          },
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        onTap: enabled
+            ? () => _showReminderTimePicker(context, provider)
+            : null,
+      ),
+    );
+  }
+
+  Future<void> _showReminderTimePicker(
+      BuildContext context, WorkoutProvider provider) async {
+    final s = provider.gymSettings;
+    final initial = TimeOfDay(hour: s.reminderHour, minute: s.reminderMinute);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.blue,
+            surface: AppColors.surface,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    final newSettings = provider.gymSettings
+        .copyWith(reminderHour: picked.hour, reminderMinute: picked.minute);
+    provider.updateGymSettings(newSettings);
+    NotificationService.reschedule(provider, newSettings);
+  }
+
+  // ── Generic tiles ─────────────────────────────────────────────────────────
+
+  Widget _switchTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 1),
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.blue, size: 22),
+        title: Text(title,
+            style:
+                const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+        subtitle: Text(subtitle,
+            style: const TextStyle(
+                color: AppColors.textSecondary, fontSize: 12)),
+        trailing: Switch(
+          value: value,
+          activeColor: AppColors.blue,
+          onChanged: onChanged,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  Future<void> _launchBugReport(BuildContext context) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'aneeshtickoo2002@gmail.com',
+      query: 'subject=Gains Bug Report&body=Describe the bug here...',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Could not open email app'),
+            backgroundColor: AppColors.surface),
+      );
+    }
   }
 
   Widget _actionTile(BuildContext context, IconData icon, String title,
@@ -1056,6 +1287,72 @@ class _ExportTileState extends State<_ExportTile> {
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
+  }
+}
+
+// ── Reset all data tile ───────────────────────────────────────────────────────
+
+class _ResetDataTile extends StatelessWidget {
+  final WorkoutProvider provider;
+  const _ResetDataTile({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 1),
+      decoration: const BoxDecoration(color: AppColors.surface),
+      child: ListTile(
+        leading: const Icon(Icons.delete_sweep_outlined,
+            color: AppColors.red, size: 22),
+        title: const Text('Reset all data',
+            style: TextStyle(color: AppColors.red, fontSize: 14)),
+        subtitle: const Text('Delete all workouts, PRs and history',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right,
+            color: AppColors.textSecondary, size: 20),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        onTap: () => _confirm(context),
+      ),
+    );
+  }
+
+  void _confirm(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Reset all data?',
+            style: TextStyle(
+                color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'This will permanently delete all your workouts, personal records, and history. Your settings and GitHub connection are kept.\n\nThis cannot be undone.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              provider.resetAllData();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('All workout data has been reset.'),
+                  backgroundColor: AppColors.surface,
+                ),
+              );
+            },
+            child: const Text('Reset',
+                style: TextStyle(
+                    color: AppColors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 }
 
