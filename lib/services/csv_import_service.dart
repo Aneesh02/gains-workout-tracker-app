@@ -49,11 +49,20 @@ class CsvImportService {
       final workoutName = first[2].isEmpty ? 'Imported Workout' : first[2];
 
       // Group rows by exercise name (preserving order of first appearance).
-      // Skip metadata rows: Set Order is "Rest Timer", "Note", or any non-integer.
+      // Capture set rows (Set Order is an integer) and rest timer rows separately.
       final Map<String, List<List<String>>> byExercise = {};
+      final Map<String, List<double>> restSecsByExercise = {};
       for (final row in workoutRows) {
-        if (int.tryParse(row[5]) == null) continue;
-        byExercise.putIfAbsent(row[4], () => []).add(row);
+        final exName = row[4];
+        if (exName.isEmpty) continue;
+        if (row[5] == 'Rest Timer') {
+          final secs = row.length > 10 ? double.tryParse(row[10]) : null;
+          if (secs != null) {
+            restSecsByExercise.putIfAbsent(exName, () => []).add(secs);
+          }
+        } else if (int.tryParse(row[5]) != null) {
+          byExercise.putIfAbsent(exName, () => []).add(row);
+        }
       }
 
       final exercises = <WorkoutExercise>[];
@@ -114,12 +123,20 @@ class CsvImportService {
           ));
         }
 
+        // Derive restSeconds from the Rest Timer rows for this exercise (average).
+        int? restSeconds;
+        final restSamples = restSecsByExercise[exName];
+        if (restSamples != null && restSamples.isNotEmpty) {
+          restSeconds = (restSamples.reduce((a, b) => a + b) / restSamples.length).round();
+        }
+
         exercises.add(WorkoutExercise(
           exerciseId: exerciseId,
           exerciseName: exName,
           muscleGroup: muscleGroup,
           exerciseType: exerciseType,
           sets: sets,
+          restSeconds: restSeconds,
         ));
       }
 
