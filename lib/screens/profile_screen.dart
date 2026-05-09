@@ -1295,7 +1295,7 @@ class _ExportTileState extends State<_ExportTile> {
   }
 }
 
-// ── Strong CSV import tile ────────────────────────────────────────────────────
+// ── CSV import tile ───────────────────────────────────────────────────────────
 
 class _ImportTile extends StatefulWidget {
   final WorkoutProvider provider;
@@ -1323,10 +1323,10 @@ class _ImportTileState extends State<_ImportTile> {
               )
             : const Icon(Icons.download_outlined,
                 color: AppColors.blue, size: 22),
-        title: const Text('Import from Strong',
+        title: const Text('Import data from CSV',
             style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
         subtitle: const Text(
-          'Pick a Strong CSV export to backfill history',
+          'Import workout history from a CSV file',
           style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
         trailing: const Icon(Icons.chevron_right,
