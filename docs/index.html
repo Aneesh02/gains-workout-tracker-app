@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gains — Workout Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg" />
+  <link rel="alternate icon" href="logo.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -37,7 +39,9 @@
       background: var(--bg);
       z-index: 10;
     }
-    .logo { font-size: 1.3rem; font-weight: 800; color: var(--blue); letter-spacing: -0.5px; }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo img { width: 32px; height: 32px; border-radius: 8px; }
+    .logo span { font-size: 1.3rem; font-weight: 800; color: var(--blue); letter-spacing: -0.5px; }
     nav a {
       color: var(--muted);
       text-decoration: none;
@@ -281,7 +285,10 @@
 <body>
 
 <nav>
-  <span class="logo">Gains</span>
+  <a class="logo" href="#">
+    <img src="logo.svg" alt="Gains logo" />
+    <span>Gains</span>
+  </a>
   <div class="nav-links">
     <a href="#features">Features</a>
     <a href="#guide">Guide</a>
