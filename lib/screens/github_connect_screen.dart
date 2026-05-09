@@ -1,6 +1,4 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/workout_provider.dart';
@@ -8,7 +6,7 @@ import '../services/github_auth_service.dart';
 import '../services/github_sync_service.dart';
 import '../theme/app_theme.dart';
 
-enum _Step { idle, requesting, polling, pickRepo, creating }
+enum _Step { idle, pickRepo, creating }
 
 class GitHubConnectScreen extends StatefulWidget {
   const GitHubConnectScreen({super.key});
@@ -22,14 +20,12 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
   final _syncSvc = GitHubSyncService();
 
   _Step _step = _Step.idle;
-  String _error = '';
 
-  // Device flow
-  DeviceFlowStart? _flow;
-  Timer? _pollTimer;
-  Timer? _countdownTimer;
-  int _pollInterval = 5;
-  int _remaining = 900;
+  // Token input
+  final _tokenCtrl = TextEditingController();
+  bool _obscure = true;
+  bool _validating = false;
+  String _tokenError = '';
 
   // Auth result
   String _token = '';
@@ -49,92 +45,45 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    _countdownTimer?.cancel();
+    _tokenCtrl.dispose();
     _searchCtrl.dispose();
     _repoNameCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _startAuth() async {
-    setState(() {
-      _step = _Step.requesting;
-      _error = '';
-    });
-    try {
-      final flow = await _authSvc.startDeviceFlow();
-      _flow = flow;
-      _pollInterval = flow.interval;
-      _remaining = flow.expiresIn;
-      setState(() => _step = _Step.polling);
-      _startPolling();
-      _startCountdown();
-    } catch (e) {
-      setState(() {
-        _step = _Step.idle;
-        _error = e.toString().replaceFirst('Exception: ', '');
-      });
+  Future<void> _connect() async {
+    final token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      setState(() => _tokenError = 'Paste your token here');
+      return;
     }
-  }
-
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer =
-        Timer.periodic(Duration(seconds: _pollInterval), (_) async {
-      if (_flow == null) return;
-      final result = await _authSvc.pollForToken(
-        deviceCode: _flow!.deviceCode,
-        interval: _pollInterval,
-      );
-      if (!mounted) return;
-
-      switch (result) {
-        case DeviceFlowPending():
-          break;
-        case DeviceFlowSlowDown(:final newInterval):
-          _pollInterval = newInterval;
-          _startPolling();
-        case DeviceFlowSuccess(:final accessToken):
-          _pollTimer?.cancel();
-          _countdownTimer?.cancel();
-          _token = accessToken;
-          await _syncSvc.savePat(_token);
-          unawaited(_loadRepos());
-        case DeviceFlowFailed(:final error):
-          _pollTimer?.cancel();
-          _countdownTimer?.cancel();
-          setState(() {
-            _step = _Step.idle;
-            _error = error;
-          });
-      }
-    });
-  }
-
-  void _startCountdown() {
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _remaining--;
-        if (_remaining <= 0) {
-          _countdownTimer?.cancel();
-          _pollTimer?.cancel();
-          _step = _Step.idle;
-          _error = 'Code expired. Please try again.';
-        }
-      });
-    });
-  }
-
-  Future<void> _loadRepos() async {
     setState(() {
+      _validating = true;
+      _tokenError = '';
+    });
+
+    final username = await _authSvc.validateToken(token);
+    if (!mounted) return;
+
+    if (username == null) {
+      setState(() {
+        _validating = false;
+        _tokenError = 'Invalid token — check it and try again';
+      });
+      return;
+    }
+
+    _token = token;
+    _username = username;
+    await _syncSvc.savePat(token);
+
+    setState(() {
+      _validating = false;
       _loadingRepos = true;
       _step = _Step.pickRepo;
     });
-    final username = await _authSvc.getUsername(_token);
-    if (username != null) _username = username;
-    final repos = await _authSvc.listRepos(_token);
+
+    final repos = await _authSvc.listRepos(token);
     if (mounted) setState(() {
       _repos = repos;
       _loadingRepos = false;
@@ -170,12 +119,10 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
       );
       if (mounted) _selectRepo(repo);
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _creating = false;
-          _createError = e.toString().replaceFirst('Exception: ', '');
-        });
-      }
+      if (mounted) setState(() {
+        _creating = false;
+        _createError = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -210,208 +157,181 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
             : null,
       ),
       body: switch (_step) {
-        _Step.idle || _Step.requesting => _buildIdleBody(),
-        _Step.polling => _buildPollingBody(),
+        _Step.idle => _buildIdle(),
         _Step.pickRepo => _buildRepoPicker(),
         _Step.creating => _buildCreateRepo(),
       },
     );
   }
 
-  Widget _buildIdleBody() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
+  Widget _buildIdle() {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        // ── Step 1: create token ──────────────────────────────────────
+        _stepHeader('1', 'Create a token on GitHub'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'A fine-grained token scoped only to your workout repo — nothing else.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
               ),
-              child: const Icon(Icons.cloud_outlined,
-                  color: AppColors.blue, size: 40),
-            ),
-            const SizedBox(height: 24),
-            const Text('Connect to GitHub',
-                style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Text(
-              'Sync your workouts as markdown files to any GitHub repository. Your data stays in your own repo.',
-              style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14, height: 1.5),
-              textAlign: TextAlign.center,
-            ),
-            if (_error.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+              _instruction(Icons.settings_outlined, 'Token type', 'Fine-grained personal access token'),
+              const SizedBox(height: 10),
+              _instruction(Icons.folder_outlined, 'Repository access', 'Only select repositories → your workout repo\n(or All repositories if you haven\'t created it yet)'),
+              const SizedBox(height: 10),
+              _instruction(Icons.edit_outlined, 'Permissions', 'Contents → Read and Write\n(everything else: No access)'),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse(GitHubAuthService.patCreateUrl);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.open_in_browser, size: 18),
+                  label: const Text('Open GitHub → Create Token',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                 ),
-                child: Text(_error,
-                    style: const TextStyle(color: AppColors.red, fontSize: 13),
-                    textAlign: TextAlign.center),
               ),
             ],
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _step == _Step.requesting ? null : _startAuth,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _step == _Step.requesting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Sign in with GitHub',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+
+        const SizedBox(height: 28),
+
+        // ── Step 2: paste token ───────────────────────────────────────
+        _stepHeader('2', 'Paste your token'),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _tokenCtrl,
+          obscureText: _obscure,
+          style: const TextStyle(
+              color: AppColors.textPrimary, fontSize: 14, fontFamily: 'monospace'),
+          decoration: InputDecoration(
+            hintText: 'github_pat_...',
+            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.blue),
+            ),
+            errorText: _tokenError.isNotEmpty ? _tokenError : null,
+            errorStyle: const TextStyle(color: AppColors.red),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+              onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+          onSubmitted: (_) => _connect(),
+        ),
+
+        const SizedBox(height: 16),
+
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _validating ? null : _connect,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.blue,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _validating
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('Connect',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPollingBody() {
-    final mins = _remaining ~/ 60;
-    final secs = _remaining % 60;
-    final timeStr =
-        '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  Widget _stepHeader(String number, String label) {
+    return Row(children: [
+      Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          color: AppColors.blue,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        alignment: Alignment.center,
+        child: Text(number,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold)),
+      ),
+      const SizedBox(width: 10),
+      Text(label,
+          style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600)),
+    ]);
+  }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Authorize in GitHub',
-                style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text(
-              '1. Open ${_flow?.verificationUri ?? 'github.com/login/device'}\n2. Enter this code:',
-              style: const TextStyle(
-                  color: AppColors.textSecondary, fontSize: 14, height: 1.6),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            GestureDetector(
-              onTap: () {
-                Clipboard.setData(
-                    ClipboardData(text: _flow?.userCode ?? ''));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Code copied'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: AppColors.blue.withOpacity(0.4), width: 2),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _flow?.userCode ?? '',
-                      style: const TextStyle(
-                        color: AppColors.blue,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Icon(Icons.copy,
-                        color: AppColors.textSecondary, size: 18),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () async {
-                  final uri =
-                      Uri.parse(_flow?.verificationUri ?? 'https://github.com/login/device');
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri,
-                        mode: LaunchMode.externalApplication);
-                  }
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.open_in_browser, size: 20),
-                label: const Text('Open github.com',
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+  Widget _instruction(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppColors.blue),
+        const SizedBox(width: 10),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 13, height: 1.5),
               children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: AppColors.blue),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Waiting · expires $timeStr',
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13),
-                ),
+                TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600)),
+                TextSpan(
+                    text: value,
+                    style:
+                        const TextStyle(color: AppColors.textSecondary)),
               ],
             ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () {
-                _pollTimer?.cancel();
-                _countdownTimer?.cancel();
-                setState(() {
-                  _step = _Step.idle;
-                  _error = '';
-                });
-              },
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -441,8 +361,8 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
           child: TextField(
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _repoSearch = v),
-            style:
-                const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: const TextStyle(
+                color: AppColors.textPrimary, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Search repositories...',
               hintStyle: const TextStyle(
@@ -565,8 +485,8 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
             icon: const Icon(Icons.arrow_back,
                 size: 16, color: AppColors.textSecondary),
             label: const Text('Back to repos',
-                style:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
             style: TextButton.styleFrom(padding: EdgeInsets.zero),
           ),
           const SizedBox(height: 20),
@@ -578,8 +498,7 @@ class _GitHubConnectScreenState extends State<GitHubConnectScreen> {
           const SizedBox(height: 8),
           const Text(
             'Create a new GitHub repo to store your workout notes.',
-            style:
-                TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 24),
           const Text('Repository name',
