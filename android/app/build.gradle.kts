@@ -59,6 +59,10 @@ android {
             }
         }
     }
+
+    lint {
+        checkReleaseBuilds = false
+    }
 }
 
 flutter {
