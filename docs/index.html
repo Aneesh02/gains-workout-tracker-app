@@ -286,6 +286,37 @@
     .md-table tr:last-child td { border-bottom: none; }
     .md-table .rpe { color: var(--muted); font-size: 0.75rem; }
 
+    /* ── Screenshots ── */
+    .screenshots-scroll {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding: 8px 4px 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .screenshots-scroll::-webkit-scrollbar { height: 6px; }
+    .screenshots-scroll::-webkit-scrollbar-track { background: transparent; }
+    .screenshots-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .screenshot-item {
+      flex-shrink: 0;
+      text-align: center;
+    }
+    .screenshot-frame {
+      width: 168px;
+      border-radius: 24px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .screenshot-frame img { width: 100%; display: block; }
+    .screenshot-label {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
     /* ── Tech stack ── */
     .tech-row {
       display: flex;
@@ -382,8 +413,8 @@
   <h1>Track your gains.<br/><span>Own your data.</span></h1>
   <p>A workout tracker for Android. Log every set, track PRs, and sync your history as markdown to your own GitHub repo.</p>
   <div class="cta-group">
-    <a class="btn btn-primary" href="https://github.com/Aneesh02/gains-workout-tracker-app/releases">
-      Download APK
+    <a class="btn btn-primary" href="gains.apk" download>
+      ⬇ Download APK
     </a>
     <a class="btn btn-secondary" href="https://github.com/Aneesh02/gains-workout-tracker-app">
       View on GitHub
@@ -425,6 +456,46 @@
       <div class="card-icon">⚡</div>
       <h3>Fast by design</h3>
       <p>Zero lag while typing weights or reps. Debounced saves, isolated timers, and RepaintBoundary per exercise card.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Screenshots -->
+<section class="section" id="screenshots" style="padding-bottom: 0;">
+  <div class="section-label">See it in action</div>
+  <h2 class="section-title">Every screen, built for speed.</h2>
+  <div class="screenshots-scroll">
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/workout_tab.jpg" alt="Workout tab" loading="lazy"></div>
+      <div class="screenshot-label">Workout dashboard</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/active_workout.jpg" alt="Active workout" loading="lazy"></div>
+      <div class="screenshot-label">Active workout + rest timer</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/plate_calculator.jpg" alt="Plate calculator" loading="lazy"></div>
+      <div class="screenshot-label">Plate calculator</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/exercise_picker.jpg" alt="Exercise picker" loading="lazy"></div>
+      <div class="screenshot-label">Exercise picker</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/workout_summary.jpg" alt="Workout summary" loading="lazy"></div>
+      <div class="screenshot-label">Post-workout summary</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/history.jpg" alt="History" loading="lazy"></div>
+      <div class="screenshot-label">Workout history</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/profile.jpg" alt="Profile" loading="lazy"></div>
+      <div class="screenshot-label">Profile &amp; analytics</div>
+    </div>
+    <div class="screenshot-item">
+      <div class="screenshot-frame"><img src="screenshots/settings.jpg" alt="Settings" loading="lazy"></div>
+      <div class="screenshot-label">Settings</div>
     </div>
   </div>
 </section>
