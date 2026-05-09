@@ -1182,41 +1182,39 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: rpeOptions.map((v) {
-                    final label = v % 1 == 0 ? v.toInt().toString() : v.toString();
-                    final selected = currentRpe == v;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
+              Row(
+                children: [
+                  for (int i = 0; i < rpeOptions.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 4),
+                    Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          context.read<WorkoutProvider>().updateSetRpe(exIdx, setIdx, v);
+                          context.read<WorkoutProvider>().updateSetRpe(exIdx, setIdx, rpeOptions[i]);
                           Navigator.pop(context);
                         },
                         child: Container(
-                          width: 52,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: selected ? AppColors.blue : AppColors.background,
+                            color: currentRpe == rpeOptions[i] ? AppColors.blue : AppColors.background,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: selected ? AppColors.blue : AppColors.divider,
+                              color: currentRpe == rpeOptions[i] ? AppColors.blue : AppColors.divider,
                             ),
                           ),
                           alignment: Alignment.center,
-                          child: Text(label,
-                              style: TextStyle(
-                                color: selected ? Colors.white : AppColors.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              )),
+                          child: Text(
+                            rpeOptions[i] % 1 == 0 ? rpeOptions[i].toInt().toString() : rpeOptions[i].toString(),
+                            style: TextStyle(
+                              color: currentRpe == rpeOptions[i] ? Colors.white : AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
