@@ -212,18 +212,79 @@
       justify-content: center;
       margin-top: 1px;
     }
-    .code-block {
+    /* ── Markdown preview card ── */
+    .md-preview {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      font-size: 0.82rem;
-      color: var(--blue-light);
-      line-height: 1.8;
-      overflow: auto;
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 0.85rem;
     }
-    .code-block .comment { color: var(--muted); }
+    .md-preview-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .md-preview-bar::before {
+      content: '';
+      display: inline-block;
+      width: 8px; height: 8px;
+      background: #26DE81;
+      border-radius: 50%;
+    }
+    .md-frontmatter {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .md-frontmatter .fm-key {
+      color: var(--muted);
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .md-frontmatter .fm-val {
+      color: var(--blue-light);
+      font-size: 0.78rem;
+    }
+    .md-frontmatter .fm-val.pr { color: #FECA57; }
+    .md-body { padding: 14px 16px; }
+    .md-h2 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .md-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    .md-table th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 5px 10px 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .md-table td {
+      padding: 7px 10px 7px 0;
+      color: var(--text);
+      border-bottom: 1px solid rgba(62,66,76,0.5);
+    }
+    .md-table tr:last-child td { border-bottom: none; }
+    .md-table .rpe { color: var(--muted); font-size: 0.75rem; }
 
     /* ── Tech stack ── */
     .tech-row {
@@ -379,20 +440,33 @@
       <li><span class="step-num">3</span> Paste the token — pick a repo or create one in-app</li>
     </ul>
   </div>
-  <div class="code-block">
-<span class="comment">--- workout frontmatter ---</span>
-date: 2025-05-09
-duration: 58 min
-volume: 4820 kg
-muscles: [Chest, Shoulders, Arms]
-prs: [Bench Press]
-
-<span class="comment">## Bench Press</span>
-| Set | Weight | Reps | RPE |
-|-----|--------|------|-----|
-| 1   | 80 kg  | 8    | 7   |
-| 2   | 85 kg  | 6    | 8   |
-| 3   | 90 kg  | 4    | 9   |
+  <div class="md-preview">
+    <div class="md-preview-bar">2025-05-09-bench-day.md</div>
+    <div class="md-frontmatter">
+      <span class="fm-key">date</span>       <span class="fm-val">2025-05-09</span>
+      <span class="fm-key">duration</span>   <span class="fm-val">58 min</span>
+      <span class="fm-key">volume</span>     <span class="fm-val">4820 kg</span>
+      <span class="fm-key">muscles</span>    <span class="fm-val">Chest · Shoulders · Arms</span>
+      <span class="fm-key">PRs</span>        <span class="fm-val pr">🏆 Bench Press</span>
+    </div>
+    <div class="md-body">
+      <div class="md-h2">Bench Press</div>
+      <table class="md-table">
+        <thead>
+          <tr>
+            <th>Set</th>
+            <th>Weight</th>
+            <th>Reps</th>
+            <th>RPE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>80 kg</td><td>8</td><td class="rpe">7</td></tr>
+          <tr><td>2</td><td>85 kg</td><td>6</td><td class="rpe">8</td></tr>
+          <tr><td>3</td><td>90 kg</td><td>4</td><td class="rpe">9</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
