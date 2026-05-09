@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gains — Workout Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1e2128;
+      --surface: #2a2d35;
+      --blue: #4a9eff;
+      --blue-light: #6bb8ff;
+      --text: #f0f0f0;
+      --muted: #8a8f9e;
+      --green: #26de81;
+      --border: #3a3d45;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Nav ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 5%;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+    }
+    .logo { font-size: 1.3rem; font-weight: 800; color: var(--blue); letter-spacing: -0.5px; }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--text); }
+    .nav-links { display: flex; gap: 28px; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 96px 5% 80px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(74,158,255,0.12);
+      color: var(--blue);
+      border: 1px solid rgba(74,158,255,0.3);
+      border-radius: 99px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+    }
+    h1 span { color: var(--blue); }
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 540px;
+      margin: 0 auto 40px;
+    }
+    .cta-group { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 26px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn:hover { transform: translateY(-2px); opacity: 0.92; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Icon graphic ── */
+    .icon-wrap {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 32px;
+      background: var(--surface);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+    }
+    .icon-wrap svg { width: 58px; height: 58px; }
+
+    /* ── Features ── */
+    .section { padding: 80px 5%; max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      text-align: center;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 56px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(74,158,255,0.12);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 1.4rem;
+    }
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .card p { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── GitHub sync highlight ── */
+    .sync-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 56px 48px;
+      margin: 80px 5%;
+      max-width: 1060px;
+      margin-left: auto;
+      margin-right: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+    @media (max-width: 680px) {
+      .sync-section { grid-template-columns: 1fr; padding: 36px 24px; }
+    }
+    .sync-section h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 16px;
+    }
+    .sync-section p { color: var(--muted); font-size: 0.95rem; margin-bottom: 24px; }
+    .step-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+    .step-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .step-num {
+      min-width: 24px;
+      height: 24px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--blue-light);
+      line-height: 1.8;
+      overflow: auto;
+    }
+    .code-block .comment { color: var(--muted); }
+
+    /* ── Tech stack ── */
+    .tech-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 40px;
+    }
+    .tech-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 7px 18px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 5%;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--blue); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">Gains</span>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#sync">GitHub Sync</a>
+    <a href="https://github.com/Aneesh02/gains-workout-tracker-app">Source</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="icon-wrap">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer ring -->
+      <circle cx="50" cy="50" r="44" fill="#2872CC"/>
+      <!-- Gap -->
+      <circle cx="50" cy="50" r="38" fill="#2a2d35"/>
+      <!-- Plate face -->
+      <circle cx="50" cy="50" r="31" fill="#4A9EFF"/>
+      <!-- Inner highlight -->
+      <circle cx="50" cy="50" r="21" fill="#6BB8FF"/>
+      <!-- Bar -->
+      <rect x="0" y="47" width="100" height="6" fill="#2872CC"/>
+      <!-- Bar highlight -->
+      <rect x="0" y="47" width="100" height="1.5" fill="#6BB8FF"/>
+      <!-- Centre hole -->
+      <circle cx="50" cy="50" r="7" fill="#2a2d35"/>
+    </svg>
+  </div>
+  <div class="badge">Open Source · Android</div>
+  <h1>Track your gains.<br/><span>Own your data.</span></h1>
+  <p>A Strong-inspired workout tracker for Android. Log every set, track PRs, and sync your history as markdown to your own GitHub repo.</p>
+  <div class="cta-group">
+    <a class="btn btn-primary" href="https://github.com/Aneesh02/gains-workout-tracker-app/releases">
+      Download APK
+    </a>
+    <a class="btn btn-secondary" href="https://github.com/Aneesh02/gains-workout-tracker-app">
+      View on GitHub
+    </a>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+  <div class="section-label">What's inside</div>
+  <h2 class="section-title">Everything you need. Nothing you don't.</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="card-icon">🏋️</div>
+      <h3>Full workout logging</h3>
+      <p>Weight, reps, RPE, cardio distance and time. Rest timer with ±30s adjustments. Per-set completion tracking.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📈</div>
+      <h3>Progress charts</h3>
+      <p>Volume, estimated 1RM, and set history per exercise. Personal records auto-detected on every workout finish.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏆</div>
+      <h3>Personal records</h3>
+      <p>PRs flagged in real time as you complete sets. Full PR history across all exercises on the Profile tab.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📚</div>
+      <h3>Exercise library</h3>
+      <p>300+ exercises seeded from Strong's database. Create custom exercises with muscle group, type, and tags.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📤</div>
+      <h3>CSV export</h3>
+      <p>Export your full workout history as a CSV. Compatible with spreadsheets and other fitness apps.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Fast by design</h3>
+      <p>Zero lag while typing weights or reps. Debounced saves, isolated timers, and RepaintBoundary per exercise card.</p>
+    </div>
+  </div>
+</section>
+
+<!-- GitHub Sync -->
+<div class="sync-section" id="sync">
+  <div>
+    <h2>Your workouts live in your GitHub repo.</h2>
+    <p>Sign in with GitHub OAuth — no manual tokens. Pick an existing repo or create one in the app. Every workout syncs as a readable markdown file.</p>
+    <ul class="step-list">
+      <li><span class="step-num">1</span> Tap Connect GitHub in Settings</li>
+      <li><span class="step-num">2</span> Authorize in your browser with a one-time code</li>
+      <li><span class="step-num">3</span> Pick a repo or create one — the app handles the rest</li>
+    </ul>
+  </div>
+  <div class="code-block">
+<span class="comment">--- workout frontmatter ---</span>
+date: 2025-05-09
+duration: 58 min
+volume: 4820 kg
+muscles: [Chest, Shoulders, Arms]
+prs: [Bench Press]
+
+<span class="comment">## Bench Press</span>
+| Set | Weight | Reps | RPE |
+|-----|--------|------|-----|
+| 1   | 80 kg  | 8    | 7   |
+| 2   | 85 kg  | 6    | 8   |
+| 3   | 90 kg  | 4    | 9   |
+  </div>
+</div>
+
+<!-- Tech stack -->
+<section class="section" style="text-align:center; padding-top: 0;">
+  <div class="section-label">Built with</div>
+  <div class="tech-row">
+    <span class="tech-chip">Flutter</span>
+    <span class="tech-chip">Dart</span>
+    <span class="tech-chip">Provider</span>
+    <span class="tech-chip">Hive</span>
+    <span class="tech-chip">GitHub Contents API</span>
+    <span class="tech-chip">flutter_secure_storage</span>
+    <span class="tech-chip">fl_chart</span>
+    <span class="tech-chip">share_plus</span>
+  </div>
+</section>
+
+<footer>
+  <p>Built by <a href="https://github.com/Aneesh02">Aneesh</a> · <a href="https://github.com/Aneesh02/gains-workout-tracker-app">GitHub</a></p>
+</footer>
+
+</body>
+</html>
