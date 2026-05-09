@@ -65,7 +65,7 @@ class GitHubAuthService {
   // https://github.com/settings/developers → OAuth Apps → New OAuth App
   // Enable "Device Flow", set Homepage URL to anything (e.g. https://github.com).
   // Paste the client_id here.
-  static const clientId = 'YOUR_GITHUB_OAUTH_CLIENT_ID';
+  static const clientId = 'Ov23lijegkIcKLFYrVv6';
 
   static const _scope = 'repo';
 
