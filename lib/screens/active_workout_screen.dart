@@ -207,9 +207,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
 
     if (!wasCompleted) {
       final isCardio = ex.exerciseType == ExerciseType.cardio;
-      if (isCardio) {
-        if (set.kmInput.isEmpty && set.timeInput.isEmpty) return;
-      } else {
+      if (!isCardio) {
         final wEmpty = set.weightInput.isEmpty;
         final rEmpty = set.repsInput.isEmpty;
         if (wEmpty || rEmpty) {
