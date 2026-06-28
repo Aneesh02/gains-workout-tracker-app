@@ -162,6 +162,10 @@ class GitHubSyncService {
         commitMessage: 'archive: $filename',
       );
 
+      // Also archive the corresponding JSON — non-fatal if it doesn't exist
+      final jsonSourcePath = WorkoutMarkdownService.jsonPathFromMarkdownPath(sourcePath);
+      _archiveJson(owner: owner, repo: repo, branch: branch, jsonPath: jsonSourcePath);
+
       // DELETE original
       final deleteRes = await http
           .delete(
@@ -245,6 +249,14 @@ class GitHubSyncService {
         commitMessage: 'workout: ${session.name}',
       );
 
+      // Also push JSON for SOMA consumption — fire and forget, errors are non-fatal
+      _pushSessionJson(
+        session: session,
+        owner: owner,
+        repo: repo,
+        branch: branch,
+      );
+
       onSaved(SessionSyncRecord(
         sessionId: session.id,
         filePath: filePath,
@@ -257,6 +269,77 @@ class GitHubSyncService {
     } catch (e) {
       return e.toString();
     }
+  }
+
+  Future<void> _archiveJson({
+    required String owner,
+    required String repo,
+    required String branch,
+    required String jsonPath,
+  }) async {
+    try {
+      final token = await getPat();
+      if (token == null || token.isEmpty) return;
+      final getRes = await http
+          .get(
+            Uri.parse('$_baseUrl/repos/$owner/$repo/contents/$jsonPath?ref=$branch'),
+            headers: _headers(token),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (getRes.statusCode != 200) return; // doesn't exist, nothing to archive
+
+      final data = jsonDecode(getRes.body) as Map<String, dynamic>;
+      final currentSha = data['sha'] as String;
+      final cleanB64 = (data['content'] as String).replaceAll('\n', '');
+      final rawContent = utf8.decode(base64.decode(cleanB64));
+
+      final filename = jsonPath.split('/').last;
+      final archivePath = 'jsons/archive/$filename';
+      final existingArchiveSha = await getFileSha(
+          owner: owner, repo: repo, branch: branch, path: archivePath);
+      await putFile(
+        owner: owner,
+        repo: repo,
+        branch: branch,
+        path: archivePath,
+        content: rawContent,
+        existingSha: existingArchiveSha,
+        commitMessage: 'archive: $filename',
+      );
+
+      await http.delete(
+        Uri.parse('$_baseUrl/repos/$owner/$repo/contents/$jsonPath'),
+        headers: {..._headers(token), 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'message': 'archive: remove $jsonPath',
+          'sha': currentSha,
+          'branch': branch,
+        }),
+      ).timeout(const Duration(seconds: 30));
+    } catch (_) {}
+  }
+
+  Future<void> _pushSessionJson({
+    required WorkoutSession session,
+    required String owner,
+    required String repo,
+    required String branch,
+  }) async {
+    try {
+      final jsonPath = WorkoutMarkdownService.sessionJsonPath(session);
+      final jsonContent = WorkoutMarkdownService.buildJson(session);
+      final existingSha = await getFileSha(
+          owner: owner, repo: repo, branch: branch, path: jsonPath);
+      await putFile(
+        owner: owner,
+        repo: repo,
+        branch: branch,
+        path: jsonPath,
+        content: jsonContent,
+        existingSha: existingSha,
+        commitMessage: 'json: ${session.name}',
+      );
+    } catch (_) {}
   }
 
   /// Creates or updates a file. Returns the new GitHub SHA.

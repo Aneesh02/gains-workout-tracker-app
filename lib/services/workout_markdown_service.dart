@@ -170,6 +170,25 @@ class WorkoutMarkdownService {
     return 'workouts/$dateStr-$slug.md';
   }
 
+  static String sessionJsonPath(WorkoutSession session) {
+    final dateStr = _dateStr(session.startTime);
+    final slug = session.name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return 'jsons/$dateStr-$slug.json';
+  }
+
+  static String buildJson(WorkoutSession session) {
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(session.toJson());
+  }
+
+  /// Derives the JSON path from a markdown file path.
+  /// e.g. workouts/2026-06-29-push-day.md → jsons/2026-06-29-push-day.json
+  static String jsonPathFromMarkdownPath(String mdPath) =>
+      mdPath.replaceFirst('workouts/', 'jsons/').replaceAll('.md', '.json');
+
   /// SHA-256 of the session JSON — used to detect edits between syncs.
   static String sessionHash(WorkoutSession session) {
     final bytes = utf8.encode(jsonEncode(session.toJson()));
