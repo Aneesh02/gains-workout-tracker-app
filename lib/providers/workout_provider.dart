@@ -19,6 +19,7 @@ import '../services/sound_service.dart';
 import '../services/github_sync_service.dart';
 import '../services/metrics_markdown_service.dart';
 import '../services/workout_markdown_service.dart';
+import '../services/widget_service.dart';
 
 // ── Analytics data classes ────────────────────────────────────────────────
 
@@ -257,6 +258,7 @@ class WorkoutProvider extends ChangeNotifier {
 
   void _save() {
     _box.put('history', jsonEncode(_history.map((s) => s.toJson()).toList()));
+    WidgetService.update(this);
     _box.put('prVolumes', jsonEncode({
       for (final e in _prRecords.entries) e.key: e.value.toJson(),
     }));

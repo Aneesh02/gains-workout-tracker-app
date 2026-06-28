@@ -48,6 +48,7 @@ dependencies:
   wakelock_plus: ^1.2.10
   file_picker: ^8.1.4
   flutter_timezone: ^3.0.0
+  home_widget: ^0.7.0
 
 dev_dependencies:
   flutter_test:

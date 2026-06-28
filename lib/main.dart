@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:home_widget/home_widget.dart';
 import 'providers/workout_provider.dart';
 import 'services/notification_service.dart';
 import 'services/sound_service.dart';
@@ -17,6 +18,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await NotificationService.init();
+  HomeWidget.setAppGroupId('com.gains.app');
   final box = await Hive.openBox('strongclone');
   final syncBox = await Hive.openBox('syncstate');
   final provider = WorkoutProvider(box, syncBox);
@@ -55,6 +57,22 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _tab = 2;
+
+  @override
+  void initState() {
+    super.initState();
+    // Handle widget tap that launched the app
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetUri);
+    // Handle widget tap when app is already running
+    HomeWidget.widgetClicked.listen(_handleWidgetUri);
+  }
+
+  void _handleWidgetUri(Uri? uri) {
+    if (uri == null) return;
+    if (uri.host == 'open' && uri.pathSegments.firstOrNull == 'metrics') {
+      setState(() => _tab = 4);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
