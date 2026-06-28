@@ -620,6 +620,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                   repo: settings.githubRepo,
                   branch: settings.githubBranch,
                   content: MetricsMarkdownService.buildNote(p),
+                  jsonContent: MetricsMarkdownService.buildJson(p),
                 );
                 return sessionError;
               }()

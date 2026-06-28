@@ -1036,6 +1036,7 @@ class WorkoutProvider extends ChangeNotifier {
       repo: s.githubRepo,
       branch: s.githubBranch,
       content: MetricsMarkdownService.buildNote(this),
+      jsonContent: MetricsMarkdownService.buildJson(this),
     );
   }
 
@@ -1063,6 +1064,7 @@ class WorkoutProvider extends ChangeNotifier {
       repo: s.githubRepo,
       branch: s.githubBranch,
       content: MetricsMarkdownService.buildNote(this),
+      jsonContent: MetricsMarkdownService.buildJson(this),
     );
   }
 
@@ -1147,6 +1149,7 @@ class WorkoutProvider extends ChangeNotifier {
       repo: settings.githubRepo,
       branch: settings.githubBranch,
       content: metricsContent,
+      jsonContent: MetricsMarkdownService.buildJson(this),
     );
     if (metricsError != null) errors.add('Metrics: $metricsError');
 

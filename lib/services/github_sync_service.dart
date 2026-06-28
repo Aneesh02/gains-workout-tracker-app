@@ -48,9 +48,11 @@ class GitHubSyncService {
     required String repo,
     required String branch,
     required String content,
+    required String jsonContent,
   }) async {
     try {
       const path = 'metrics-snapshot.md';
+      const jsonPath = 'metrics.json';
       // Always fetch live SHA — cached value can be stale if file changed externally.
       final existingSha = await getFileSha(
           owner: owner, repo: repo, branch: branch, path: path);
@@ -64,6 +66,22 @@ class GitHubSyncService {
         commitMessage: 'metrics: update snapshot',
       );
       await saveMetricsSha(newSha);
+
+      // Push metrics.json — non-fatal if it fails
+      try {
+        final existingJsonSha = await getFileSha(
+            owner: owner, repo: repo, branch: branch, path: jsonPath);
+        await putFile(
+          owner: owner,
+          repo: repo,
+          branch: branch,
+          path: jsonPath,
+          content: jsonContent,
+          existingSha: existingJsonSha,
+          commitMessage: 'metrics: update json',
+        );
+      } catch (_) {}
+
       return null;
     } catch (e) {
       return e.toString();

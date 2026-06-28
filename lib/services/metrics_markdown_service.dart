@@ -1,7 +1,9 @@
+import 'dart:convert';
 import '../providers/workout_provider.dart';
 
 class MetricsMarkdownService {
   static const filePath = 'metrics-snapshot.md';
+  static const jsonFilePath = 'metrics.json';
 
   static String buildNote(WorkoutProvider p) {
     final now = DateTime.now();
@@ -136,6 +138,66 @@ class MetricsMarkdownService {
     }
 
     return buf.toString();
+  }
+
+  static String buildJson(WorkoutProvider p) {
+    final now = DateTime.now();
+    final freq = p.getFrequencyTrend();
+    final spike = p.getWeeklyVolumeSpike();
+    final prVel = p.getPRVelocity();
+    final stats = p.getAllTimeStats();
+    final weeklyVolume = p.getVolumeByWeek(weeks: 12);
+    final prs = p.personalRecords;
+
+    final data = <String, dynamic>{
+      'generated_at': now.toIso8601String(),
+      'all_time': {
+        'total_workouts': stats.totalWorkouts,
+        'total_sets': stats.totalSets,
+        'total_volume_kg': stats.totalVolume,
+        'total_minutes': stats.totalMinutes,
+        'total_prs': stats.totalPRs,
+      },
+      'consistency': {
+        'score_pct': p.getConsistencyScore(),
+        'current_streak_weeks': p.getCurrentStreakWeeks(),
+        'best_streak_weeks': p.getBestStreakWeeks(),
+        'longest_gap_days': p.getLongestGapDays(),
+        'sessions_per_week_recent': freq.recent,
+        'sessions_per_week_previous': freq.previous,
+      },
+      'volume': {
+        'weekly_vs_4wk_avg_pct': spike,
+        'push_pull_ratio': p.getPushPullRatio(),
+        'avg_set_completion_pct': (p.getAvgSetCompletionRate() * 100).roundToDouble(),
+        'avg_density_sets_per_hr': p.getAvgSessionDensity(),
+        'exercise_variety_28d': p.getExerciseVarietyScore(),
+      },
+      'progress': {
+        'pr_velocity_recent_8wks': prVel.recent,
+        'pr_velocity_previous_8wks': prVel.previous,
+        'plateau_flags': p.getPlateauFlags(),
+        'neglected_muscles_14d': p.getNeglectedMuscles(),
+      },
+      'weekly_volume': weeklyVolume.map((e) => {
+        'week_start': e.weekStart.toIso8601String(),
+        'volume_kg': e.volume,
+        'sessions': e.sessions,
+        'minutes': e.minutes,
+      }).toList(),
+      'personal_records': {
+        for (final e in prs.entries)
+          e.key: {
+            'weight_kg': e.value.weight,
+            'reps': e.value.reps,
+            'e1rm': e.value.e1rm,
+            'date': e.value.date.toIso8601String(),
+          }
+      },
+    };
+
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(data);
   }
 
   static String _fmtVolume(int kg) {
