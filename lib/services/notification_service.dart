@@ -136,7 +136,10 @@ class NotificationService {
   /// Call on app open AND immediately after a workout is finished.
   static Future<void> reschedule(
       WorkoutProvider provider, GymSettings settings) async {
-    await _plugin.cancelAll();
+    // Cancel only reminder slots — never touch the active workout notification
+    await _plugin.cancel(_idMorning);
+    await _plugin.cancel(_idPrimary);
+    await _plugin.cancel(_idEvening);
     if (!settings.remindersEnabled) return;
 
     final trained = provider.workedOutToday(settings.dayStartHour);
@@ -146,7 +149,11 @@ class NotificationService {
     await _scheduleSlotC(provider, settings, trained: trained);
   }
 
-  static Future<void> cancelAll() => _plugin.cancelAll();
+  static Future<void> cancelReminders() async {
+    await _plugin.cancel(_idMorning);
+    await _plugin.cancel(_idPrimary);
+    await _plugin.cancel(_idEvening);
+  }
 
   // ── Slot A — Morning pre-workout (9 AM) ──────────────────────────────────
 
