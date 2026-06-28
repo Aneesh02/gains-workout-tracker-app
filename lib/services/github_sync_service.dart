@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -154,7 +155,14 @@ class GitHubSyncService {
           )
           .timeout(const Duration(seconds: 10));
 
-      if (getRes.statusCode == 404) return null; // already gone
+      // Always attempt to archive the JSON regardless of markdown status
+      final jsonSourcePath = WorkoutMarkdownService.jsonPathFromMarkdownPath(sourcePath);
+
+      if (getRes.statusCode == 404) {
+        // Markdown already gone — still clean up the JSON
+        unawaited(_archiveJson(owner: owner, repo: repo, branch: branch, jsonPath: jsonSourcePath));
+        return null;
+      }
       if (getRes.statusCode != 200) {
         throw Exception('GET failed (${getRes.statusCode})');
       }
@@ -180,9 +188,8 @@ class GitHubSyncService {
         commitMessage: 'archive: $filename',
       );
 
-      // Also archive the corresponding JSON — non-fatal if it doesn't exist
-      final jsonSourcePath = WorkoutMarkdownService.jsonPathFromMarkdownPath(sourcePath);
-      _archiveJson(owner: owner, repo: repo, branch: branch, jsonPath: jsonSourcePath);
+      // Archive the JSON — non-fatal if it doesn't exist
+      unawaited(_archiveJson(owner: owner, repo: repo, branch: branch, jsonPath: jsonSourcePath));
 
       // DELETE original
       final deleteRes = await http
