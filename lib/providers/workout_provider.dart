@@ -238,6 +238,9 @@ class WorkoutProvider extends ChangeNotifier {
     if (_box.get('defaultTemplatesSeeded') == null) {
       _seedDefaultTemplates();
     }
+
+    // Refresh widget data on every app launch so it always reflects current state
+    Future.microtask(() => WidgetService.update(this));
   }
 
   void _debouncedSave() {

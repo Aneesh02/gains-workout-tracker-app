@@ -29,8 +29,8 @@ class WidgetService {
         qualifiedAndroidName: '$_appGroupId.$_androidName',
       );
       await HomeWidget.updateWidget(
-        androidName: '${_androidName}SmallProvider',
-        qualifiedAndroidName: '$_appGroupId.${_androidName}SmallProvider',
+        androidName: 'GainsWidgetSmallProvider',
+        qualifiedAndroidName: '$_appGroupId.GainsWidgetSmallProvider',
       );
     } catch (_) {}
   }
