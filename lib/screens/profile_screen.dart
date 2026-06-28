@@ -14,7 +14,6 @@ import '../services/csv_export_service.dart';
 import '../services/csv_import_service.dart';
 import '../services/github_sync_service.dart';
 import '../services/notification_service.dart';
-import '../services/health_connect_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import 'exercise_detail_screen.dart';
@@ -622,9 +621,6 @@ class SettingsScreen extends StatelessWidget {
           _sectionHeader('Obsidian'),
           _obsidianTile(context, provider),
           const SizedBox(height: 24),
-          _sectionHeader('Health Connect'),
-          const _HealthConnectTile(),
-          const SizedBox(height: 24),
           _sectionHeader('GitHub Sync'),
           _GitHubSyncSection(provider: provider),
           const SizedBox(height: 24),
@@ -1117,74 +1113,6 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-// ── Health Connect tile ────────────────────────────────────────────────────────
-
-class _HealthConnectTile extends StatefulWidget {
-  const _HealthConnectTile();
-
-  @override
-  State<_HealthConnectTile> createState() => _HealthConnectTileState();
-}
-
-class _HealthConnectTileState extends State<_HealthConnectTile> {
-  bool? _granted;
-  bool _checking = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _check();
-  }
-
-  Future<void> _check() async {
-    final ok = await HealthConnectService.hasPermission();
-    if (mounted) setState(() => _granted = ok);
-  }
-
-  Future<void> _request() async {
-    setState(() => _checking = true);
-    try {
-      final ok = await HealthConnectService.requestPermission();
-      if (mounted) setState(() { _granted = ok; _checking = false; });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _checking = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Health Connect: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final granted = _granted;
-    return ListTile(
-      leading: Icon(
-        Icons.favorite_outlined,
-        color: granted == true ? Colors.redAccent : AppColors.textSecondary,
-      ),
-      title: const Text('Health Connect'),
-      subtitle: Text(
-        granted == null
-            ? 'Checking…'
-            : granted
-                ? 'Workouts sync to Health Connect after each session'
-                : 'Grant access so GAINS can write workouts to Health Connect',
-        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-      ),
-      trailing: _checking
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-          : granted == true
-              ? const Icon(Icons.check_circle, color: Colors.green)
-              : TextButton(
-                  onPressed: _request,
-                  child: const Text('Connect'),
-                ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    );
-  }
-}
 
 // ── GitHub Sync section ───────────────────────────────────────────────────────
 

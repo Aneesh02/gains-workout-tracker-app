@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:home_widget/home_widget.dart';
 import 'providers/workout_provider.dart';
 import 'services/notification_service.dart';
-import 'services/health_connect_service.dart';
 import 'services/sound_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/workout_tab_screen.dart';
@@ -19,7 +18,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await NotificationService.init();
-  await HealthConnectService.configure();
   HomeWidget.setAppGroupId('com.gains.app');
   final box = await Hive.openBox('strongclone');
   final syncBox = await Hive.openBox('syncstate');

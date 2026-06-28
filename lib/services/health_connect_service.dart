@@ -41,6 +41,19 @@ class HealthConnectService {
     }
   }
 
+  /// Deletes the Health Connect record matching this session's time range.
+  static Future<void> deleteSession(WorkoutSession session) async {
+    final end = session.endTime;
+    if (end == null) return;
+    try {
+      await _health.delete(
+        type: HealthDataType.WORKOUT,
+        startTime: session.startTime,
+        endTime: end,
+      );
+    } catch (_) {}
+  }
+
   /// Writes a completed session to Health Connect.
   /// Returns null on success, error message on failure.
   static Future<String?> writeSession(WorkoutSession session) async {
