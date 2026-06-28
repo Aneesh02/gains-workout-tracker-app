@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -130,6 +131,12 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>();
     final granted = await android?.requestNotificationsPermission() ?? false;
     if (granted) await android?.requestExactAlarmsPermission();
+    // Ask to be excluded from battery optimization so scheduled alarms fire
+    // reliably on Samsung and other aggressive OEMs.
+    try {
+      const channel = MethodChannel('com.gains.app/battery');
+      await channel.invokeMethod('requestIgnoreBatteryOptimization');
+    } catch (_) {}
     return granted;
   }
 
