@@ -72,8 +72,8 @@ class WidgetService {
       }).toList();
 
       if (sessions.isNotEmpty) {
-        // Trained — show first session duration
-        final detail = _durationStr(sessions.first);
+        // Trained — show primary muscle group of the session
+        final detail = _primaryMuscle(sessions.first);
         data[i] = '1|$detail';
       } else if (day == todayDate) {
         data[i] = '2|'; // today, not trained yet
@@ -85,16 +85,42 @@ class WidgetService {
     return data;
   }
 
-  static String _durationStr(WorkoutSession session) {
-    final end = session.endTime ?? DateTime.now();
-    final mins = end.difference(session.startTime).inMinutes;
-    if (mins <= 0) return '';
-    if (mins >= 60) {
-      final h = mins ~/ 60;
-      final m = mins % 60;
-      return m == 0 ? '${h}h' : '${h}h${m}m';
+  // Returns the most-trained muscle group of a session, abbreviated to fit the widget.
+  static String _primaryMuscle(WorkoutSession session) {
+    if (session.exercises.isEmpty) return '';
+    // Count sets per muscle group and pick the most frequent
+    final counts = <String, int>{};
+    for (final ex in session.exercises) {
+      final mg = ex.muscleGroup.trim().toLowerCase();
+      if (mg.isEmpty) continue;
+      counts[mg] = (counts[mg] ?? 0) + ex.sets.length;
     }
-    return '${mins}m';
+    if (counts.isEmpty) return '';
+    final top = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    return _abbreviateMuscle(top);
+  }
+
+  static String _abbreviateMuscle(String mg) {
+    switch (mg) {
+      case 'chest': return 'Chest';
+      case 'back': return 'Back';
+      case 'legs': return 'Legs';
+      case 'shoulders': return 'Shlds';
+      case 'arms': return 'Arms';
+      case 'biceps': return 'Bicep';
+      case 'triceps': return 'Tric';
+      case 'core': return 'Core';
+      case 'cardio': return 'Cardio';
+      case 'glutes': return 'Glute';
+      case 'hamstrings': return 'Hams';
+      case 'quads': return 'Quads';
+      case 'calves': return 'Calv';
+      case 'full body': return 'Full';
+      default:
+        // Capitalise first letter, truncate at 5 chars
+        final cap = mg[0].toUpperCase() + mg.substring(1);
+        return cap.length > 5 ? cap.substring(0, 5) : cap;
+    }
   }
 
   static int _sessionsThisWeek(WorkoutProvider provider) {
