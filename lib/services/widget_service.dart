@@ -55,7 +55,7 @@ class WidgetService {
     final todayIdx = now.weekday - 1;
     final weekMonday = todayDate.subtract(Duration(days: todayIdx));
 
-    final data = List<String>.filled(7, '3|');
+    final data = List<String>.filled(7, '3||');
 
     for (int i = 0; i < 7; i++) {
       final day = weekMonday.add(Duration(days: i));
@@ -72,23 +72,22 @@ class WidgetService {
       }).toList();
 
       if (sessions.isNotEmpty) {
-        // Trained — show primary muscle group of the session
-        final detail = _primaryMuscle(sessions.first);
-        data[i] = '1|$detail';
+        final muscles = _topMuscles(sessions.first);   // newline-separated, up to 3
+        final dur = _durationStr(sessions.first);
+        data[i] = '1|$muscles|$dur';
       } else if (day == todayDate) {
-        data[i] = '2|'; // today, not trained yet
+        data[i] = '2||'; // today, not trained yet
       } else {
-        data[i] = '0|'; // past rest day
+        data[i] = '0||'; // past rest day
       }
     }
 
     return data;
   }
 
-  // Returns the most-trained muscle group of a session, abbreviated to fit the widget.
-  static String _primaryMuscle(WorkoutSession session) {
+  // Returns up to 3 muscle groups by set count, newline-separated, abbreviated.
+  static String _topMuscles(WorkoutSession session) {
     if (session.exercises.isEmpty) return '';
-    // Count sets per muscle group and pick the most frequent
     final counts = <String, int>{};
     for (final ex in session.exercises) {
       final mg = ex.muscleGroup.trim().toLowerCase();
@@ -96,8 +95,24 @@ class WidgetService {
       counts[mg] = (counts[mg] ?? 0) + ex.sets.length;
     }
     if (counts.isEmpty) return '';
-    final top = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-    return _abbreviateMuscle(top);
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted
+        .take(3)
+        .map((e) => _abbreviateMuscle(e.key))
+        .join('\\n'); // literal \n — Kotlin replaces it with a real newline
+  }
+
+  static String _durationStr(WorkoutSession session) {
+    final end = session.endTime ?? DateTime.now();
+    final mins = end.difference(session.startTime).inMinutes;
+    if (mins <= 0) return '';
+    if (mins >= 60) {
+      final h = mins ~/ 60;
+      final m = mins % 60;
+      return m == 0 ? '${h}h' : '${h}h${m}m';
+    }
+    return '${mins}m';
   }
 
   static String _abbreviateMuscle(String mg) {

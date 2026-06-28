@@ -46,6 +46,9 @@ class GainsWidgetProvider : AppWidgetProvider() {
 
         // 7-day grid: each day stored as "<state>|<detail>" where
         // state: 1=trained(orange), 2=today not trained(blue), 0=past rest(gray), 3=future(dim)
+        // Format: "<state>|<muscles>|<duration>"
+        // muscles = newline-separated list shown inside the box
+        // duration = shown below the box
         val boxIds = intArrayOf(
             R.id.day_0_box, R.id.day_1_box, R.id.day_2_box, R.id.day_3_box,
             R.id.day_4_box, R.id.day_5_box, R.id.day_6_box
@@ -56,10 +59,11 @@ class GainsWidgetProvider : AppWidgetProvider() {
         )
 
         for (i in 0..6) {
-            val raw = prefs.getString("gains.day$i", "3|") ?: "3|"
-            val parts = raw.split("|", limit = 2)
-            val state = parts[0].trim()
-            val detail = if (parts.size > 1) parts[1].trim() else ""
+            val raw = prefs.getString("gains.day$i", "3||") ?: "3||"
+            val parts = raw.split("|", limit = 3)
+            val state   = parts.getOrElse(0) { "3" }.trim()
+            val muscles = parts.getOrElse(1) { "" }.trim().replace("\\n", "\n")
+            val dur     = parts.getOrElse(2) { "" }.trim()
 
             val bgRes = when (state) {
                 "1" -> R.drawable.widget_day_done
@@ -68,7 +72,8 @@ class GainsWidgetProvider : AppWidgetProvider() {
                 else -> R.drawable.widget_day_future
             }
             views.setInt(boxIds[i], "setBackgroundResource", bgRes)
-            views.setTextViewText(detailIds[i], detail)
+            views.setTextViewText(boxIds[i], muscles)
+            views.setTextViewText(detailIds[i], dur)
         }
 
         views.setOnClickPendingIntent(R.id.widget_root_layout, buildPendingIntent(context, 0))
