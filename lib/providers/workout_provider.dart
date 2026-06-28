@@ -13,6 +13,7 @@ import '../models/workout_session.dart';
 import '../models/set_entry.dart';
 import '../models/workout_template.dart';
 import '../data/exercise_data.dart';
+import '../services/health_connect_service.dart';
 import '../models/sync_state.dart';
 import '../services/csv_import_service.dart';
 import '../services/sound_service.dart';
@@ -721,10 +722,12 @@ class WorkoutProvider extends ChangeNotifier {
     }
     _activeWorkout!.personalRecords = newPRs;
     _history.insert(0, _activeWorkout!);
-    final finished = _activeWorkout;
+    final finished = _activeWorkout!;
     _activeWorkout = null;
     _save();
     notifyListeners();
+    // Write to Health Connect in the background — fire and forget
+    Future.microtask(() => HealthConnectService.writeSession(finished));
     return finished;
   }
 
