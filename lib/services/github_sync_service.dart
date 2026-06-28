@@ -337,6 +337,28 @@ class GitHubSyncService {
     } catch (_) {}
   }
 
+  /// Public version of JSON push — used for backfill. Throws on error.
+  Future<void> pushSessionJsonOnly({
+    required WorkoutSession session,
+    required String owner,
+    required String repo,
+    required String branch,
+  }) async {
+    final jsonPath = WorkoutMarkdownService.sessionJsonPath(session);
+    final jsonContent = WorkoutMarkdownService.buildJson(session);
+    final existingSha = await getFileSha(
+        owner: owner, repo: repo, branch: branch, path: jsonPath);
+    await putFile(
+      owner: owner,
+      repo: repo,
+      branch: branch,
+      path: jsonPath,
+      content: jsonContent,
+      existingSha: existingSha,
+      commitMessage: 'json: ${session.name}',
+    );
+  }
+
   Future<void> _pushSessionJson({
     required WorkoutSession session,
     required String owner,

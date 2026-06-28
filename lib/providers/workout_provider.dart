@@ -1097,10 +1097,31 @@ class WorkoutProvider extends ChangeNotifier {
     for (final session in _history) {
       final existing = _syncRecords[session.id];
       final hash = WorkoutMarkdownService.sessionHash(session);
+      final mdUnchanged = existing != null && existing.sessionHash == hash &&
+          existing.filePath == WorkoutMarkdownService.sessionFilePath(session);
 
-      if (existing != null && existing.sessionHash == hash &&
-          existing.filePath == WorkoutMarkdownService.sessionFilePath(session)) {
-        skipped++;
+      if (mdUnchanged) {
+        // Markdown unchanged — but still ensure JSON exists (backfill)
+        final jsonPath = WorkoutMarkdownService.sessionJsonPath(session);
+        final jsonSha = await svc.getFileSha(
+            owner: settings.githubOwner,
+            repo: settings.githubRepo,
+            branch: settings.githubBranch,
+            path: jsonPath);
+        if (jsonSha == null) {
+          // JSON missing — push it
+          try {
+            await svc.pushSessionJsonOnly(
+              session: session,
+              owner: settings.githubOwner,
+              repo: settings.githubRepo,
+              branch: settings.githubBranch,
+            );
+            pushed++;
+          } catch (_) {}
+        } else {
+          skipped++;
+        }
         continue;
       }
 
