@@ -1,4 +1,5 @@
 import 'package:home_widget/home_widget.dart';
+import '../models/workout_session.dart';
 import '../providers/workout_provider.dart';
 
 class WidgetService {
@@ -24,6 +25,12 @@ class WidgetService {
       await HomeWidget.saveWidgetData('gains.weeklyTarget', weeklyTarget);
       await HomeWidget.saveWidgetData('gains.weeklyVolume', volumeStr);
 
+      // Per-day grid data (Monday=0 … Sunday=6)
+      final dayData = _getDayData(provider);
+      for (int i = 0; i < 7; i++) {
+        await HomeWidget.saveWidgetData('gains.day$i', dayData[i]);
+      }
+
       await HomeWidget.updateWidget(
         androidName: _androidName,
         qualifiedAndroidName: '$_appGroupId.$_androidName',
@@ -35,10 +42,64 @@ class WidgetService {
     } catch (_) {}
   }
 
+  // Returns 7 strings indexed Monday=0 … Sunday=6.
+  // Format: "<state>|<detail>"
+  //   state 1 = trained (orange)
+  //   state 2 = today, not yet trained (blue)
+  //   state 0 = past rest day (gray)
+  //   state 3 = future (dim)
+  static List<String> _getDayData(WorkoutProvider provider) {
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    // weekday: Mon=1 … Sun=7, map to Mon=0 … Sun=6
+    final todayIdx = now.weekday - 1;
+    final weekMonday = todayDate.subtract(Duration(days: todayIdx));
+
+    final data = List<String>.filled(7, '3|');
+
+    for (int i = 0; i < 7; i++) {
+      final day = weekMonday.add(Duration(days: i));
+
+      if (day.isAfter(todayDate)) {
+        data[i] = '3|'; // future
+        continue;
+      }
+
+      // Find sessions on this calendar day
+      final sessions = provider.history.where((s) {
+        final d = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
+        return d == day;
+      }).toList();
+
+      if (sessions.isNotEmpty) {
+        // Trained — show first session duration
+        final detail = _durationStr(sessions.first);
+        data[i] = '1|$detail';
+      } else if (day == todayDate) {
+        data[i] = '2|'; // today, not trained yet
+      } else {
+        data[i] = '0|'; // past rest day
+      }
+    }
+
+    return data;
+  }
+
+  static String _durationStr(WorkoutSession session) {
+    final end = session.endTime ?? DateTime.now();
+    final mins = end.difference(session.startTime).inMinutes;
+    if (mins <= 0) return '';
+    if (mins >= 60) {
+      final h = mins ~/ 60;
+      final m = mins % 60;
+      return m == 0 ? '${h}h' : '${h}h${m}m';
+    }
+    return '${mins}m';
+  }
+
   static int _sessionsThisWeek(WorkoutProvider provider) {
     final now = DateTime.now();
-    final weekday = now.weekday;
-    final daysFromMonday = (weekday - DateTime.monday + 7) % 7;
+    final daysFromMonday = (now.weekday - DateTime.monday + 7) % 7;
     final weekStart = DateTime(now.year, now.month, now.day - daysFromMonday);
     return provider.history
         .where((s) => !s.startTime.isBefore(weekStart))
@@ -47,8 +108,7 @@ class WidgetService {
 
   static int _volumeThisWeek(WorkoutProvider provider) {
     final now = DateTime.now();
-    final weekday = now.weekday;
-    final daysFromMonday = (weekday - DateTime.monday + 7) % 7;
+    final daysFromMonday = (now.weekday - DateTime.monday + 7) % 7;
     final weekStart = DateTime(now.year, now.month, now.day - daysFromMonday);
     int vol = 0;
     for (final s in provider.history.where((s) => !s.startTime.isBefore(weekStart))) {

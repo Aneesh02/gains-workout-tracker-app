@@ -35,11 +35,43 @@ class GainsWidgetProvider : AppWidgetProvider() {
         val volume = prefs.getString("gains.weeklyVolume", "—") ?: "—"
 
         val views = RemoteViews(context.packageName, R.layout.gains_widget)
-        views.setTextViewText(R.id.widget_streak_number, streak.toString())
+
+        // Header
+        val streakText = if (streak == 1) "1 wk streak" else "$streak wk streak"
+        views.setTextViewText(R.id.widget_streak_label, streakText)
+
+        // Footer
         views.setTextViewText(R.id.widget_weekly_label, "$weeklyCount / $weeklyTarget this week")
         views.setTextViewText(R.id.widget_volume, volume)
-        views.setOnClickPendingIntent(R.id.widget_root_layout, buildPendingIntent(context, 0))
 
+        // 7-day grid: each day stored as "<state>|<detail>" where
+        // state: 1=trained(orange), 2=today not trained(blue), 0=past rest(gray), 3=future(dim)
+        val boxIds = intArrayOf(
+            R.id.day_0_box, R.id.day_1_box, R.id.day_2_box, R.id.day_3_box,
+            R.id.day_4_box, R.id.day_5_box, R.id.day_6_box
+        )
+        val detailIds = intArrayOf(
+            R.id.day_0_detail, R.id.day_1_detail, R.id.day_2_detail, R.id.day_3_detail,
+            R.id.day_4_detail, R.id.day_5_detail, R.id.day_6_detail
+        )
+
+        for (i in 0..6) {
+            val raw = prefs.getString("gains.day$i", "3|") ?: "3|"
+            val parts = raw.split("|", limit = 2)
+            val state = parts[0].trim()
+            val detail = if (parts.size > 1) parts[1].trim() else ""
+
+            val bgRes = when (state) {
+                "1" -> R.drawable.widget_day_done
+                "2" -> R.drawable.widget_day_today
+                "0" -> R.drawable.widget_day_rest
+                else -> R.drawable.widget_day_future
+            }
+            views.setInt(boxIds[i], "setBackgroundResource", bgRes)
+            views.setTextViewText(detailIds[i], detail)
+        }
+
+        views.setOnClickPendingIntent(R.id.widget_root_layout, buildPendingIntent(context, 0))
         appWidgetManager.updateAppWidget(widgetId, views)
     }
 

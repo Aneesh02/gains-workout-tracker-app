@@ -177,8 +177,23 @@ class NotificationService {
   }
 
   static ({String title, String body}) _morningContent(WorkoutProvider p) {
-    // Muscle-specific focus
+    final now = DateTime.now();
     final nudges = p.getMuscleNudges();
+    final streak = p.getCurrentStreakWeeks();
+    final needed = _sessionsNeededThisWeek(p);
+    final daysLeft = _daysLeftInWeek(p.weekStartDay);
+
+    // Streak at risk — surface first, high urgency
+    if (streak > 0 && needed > 0 && daysLeft <= 2) {
+      final plural = needed == 1 ? 'session' : 'sessions';
+      return (
+        title: "Streak at risk 🔥",
+        body: "$streak-week streak needs $needed more $plural in $daysLeft day${daysLeft == 1 ? '' : 's'}. "
+            "Don't let it slip now.",
+      );
+    }
+
+    // Muscle-specific nudge
     if (nudges.isNotEmpty) {
       final muscle = _capFirst(nudges.first.muscleGroup);
       final days = nudges.first.daysSince;
@@ -189,14 +204,22 @@ class NotificationService {
       );
     }
 
-    // Streak pattern — best day of week
+    // Streak motivation — best day of week
     final patterns = p.getTrainingPatterns();
-    final todayName = _weekdayName(DateTime.now().weekday);
+    final todayName = _weekdayName(now.weekday);
     if (patterns.topDay != null && patterns.topDay == todayName) {
       return (
         title: "Your best training day",
         body: "Your data says $todayName is your strongest day. "
             "Don't let it go to waste.",
+      );
+    }
+
+    // Active streak — keep momentum
+    if (streak > 0) {
+      return (
+        title: "$streak week${streak > 1 ? 's' : ''} strong",
+        body: "Your streak is alive. Plan today's session now before the day gets busy.",
       );
     }
 
@@ -212,7 +235,7 @@ class NotificationService {
         body: "Plan your workout now — people who plan train more consistently."
       ),
     ];
-    return defaults[DateTime.now().day % defaults.length];
+    return defaults[now.day % defaults.length];
   }
 
   // ── Slot B — Primary time (user-configured) ───────────────────────────────
@@ -220,128 +243,76 @@ class NotificationService {
   static Future<String?> _scheduleSlotB(
       WorkoutProvider provider, GymSettings settings,
       {required bool trained}) async {
-    final content = trained
-        ? _postWorkoutPrimaryContent(provider)
-        : _preWorkoutPrimaryContent(provider);
+    final content = _middayProteinContent(provider, trained: trained);
     return _schedule(_idPrimary, settings.reminderHour, settings.reminderMinute,
         content.title, content.body);
   }
 
-  static ({String title, String body}) _preWorkoutPrimaryContent(
-      WorkoutProvider p) {
-    final history = p.history;
-    if (history.isEmpty) {
-      return (
-        title: "Log your first session",
-        body: "Open Gains and start tracking. Every journey starts somewhere."
-      );
-    }
-
+  static ({String title, String body}) _middayProteinContent(
+      WorkoutProvider p, {required bool trained}) {
     final now = DateTime.now();
-    final daysSinceLast =
-        now.difference(history.first.startTime).inDays;
 
-    // Long gap — comeback nudge
-    if (daysSinceLast >= 5) {
-      return (
-        title: "Long time no lift",
-        body: "$daysSinceLast days since your last session. "
-            "Even something light gets you back on track.",
-      );
+    // Trained today — recovery protein nudge
+    if (trained) {
+      final opts = [
+        (
+          title: "Post-workout protein?",
+          body: "You trained today — did you get your protein in? "
+              "Muscle repair starts now. Hit that target.",
+        ),
+        (
+          title: "Fuel the recovery",
+          body: "Great session today. Have you had your protein yet? "
+              "Aim for 30–40g this meal to kickstart recovery.",
+        ),
+        (
+          title: "Protein check ✓",
+          body: "You put in the work — now feed the muscle. "
+              "Chicken, eggs, paneer, whey — whatever it takes.",
+        ),
+        (
+          title: "Recovery window open",
+          body: "Did you eat protein after your session? "
+              "Don't let a good workout go to waste.",
+        ),
+      ];
+      return opts[now.day % opts.length];
     }
 
-    // Streak at risk
-    final streak = p.getCurrentStreakWeeks();
-    if (streak > 0) {
-      final needed = _sessionsNeededThisWeek(p);
-      final daysLeft = _daysLeftInWeek(p.weekStartDay);
-      if (needed > 0 && daysLeft <= 2) {
-        final plural = needed == 1 ? 'workout' : 'workouts';
-        return (
-          title: "Streak alert",
-          body: "Your $streak-week streak needs $needed more $plural "
-              "before the week ends. Let's go.",
-        );
-      }
-    }
-
-    // Streak motivation — keep it alive with minimal effort
-    if (streak > 1 && daysSinceLast >= 2) {
-      return (
-        title: "$streak weeks strong",
-        body: "Even 20 minutes of cardio keeps your streak alive. "
-            "Don't let it slip now.",
-      );
-    }
-
-    // Push/pull imbalance
-    final pushPull = p.getPushPullRatio();
-    if (pushPull > 2.5) {
-      return (
-        title: "Balance check",
-        body: "${pushPull.toStringAsFixed(1)}:1 push-to-pull ratio this month. "
-            "Some rows or pull-downs wouldn't hurt.",
-      );
-    }
-
-    // Volume dip
-    final spike = p.getWeeklyVolumeSpike();
-    if (spike != null && spike < -20) {
-      return (
-        title: "Volume is down",
-        body: "Weekly volume is down ${spike.abs().round()}% vs last month. "
-            "Push a bit harder today.",
-      );
-    }
-
-    // Default — rotate
+    // Rest day — general protein nudge
     final opts = [
       (
-        title: "Time to train",
-        body: "You've got time. Open Gains and get after it."
+        title: "Protein check — did you?",
+        body: "Have you hit your protein today? "
+            "Even on rest days, muscles need fuel to rebuild.",
       ),
       (
-        title: "Consistency wins",
-        body: "One more session this week keeps the momentum going."
+        title: "Mid-day fuel",
+        body: "Quick check — how's your protein intake looking today? "
+            "Aim for at least 0.8–1g per kg of bodyweight.",
       ),
       (
-        title: "Show up today",
-        body: "You don't have to be perfect — just be present."
+        title: "Had protein today?",
+        body: "Lunch time. Make sure there's a solid protein source on your plate — "
+            "eggs, chicken, dal, paneer, or a shake.",
+      ),
+      (
+        title: "Don't skip the protein",
+        body: "Rest day or not, your muscles are still recovering. "
+            "Keep the protein consistent.",
+      ),
+      (
+        title: "Protein > everything",
+        body: "Calories can wait — protein cannot. "
+            "Did you get a solid source in this meal?",
       ),
     ];
     return opts[now.day % opts.length];
   }
 
+  // ignore: unused_element
   static ({String title, String body}) _postWorkoutPrimaryContent(
       WorkoutProvider p) {
-    final nudges = p.getMuscleNudges();
-    final streak = p.getCurrentStreakWeeks();
-
-    if (nudges.isNotEmpty) {
-      final muscle = _capFirst(nudges.first.muscleGroup);
-      final days = nudges.first.daysSince;
-      if (streak > 0) {
-        return (
-          title: "Solid session!",
-          body: "$streak-week streak is safe. Tomorrow: $muscle hasn't been "
-              "trained in $days days — make it the focus.",
-        );
-      }
-      return (
-        title: "Great work today",
-        body: "Rest up and fuel well. Tomorrow's target: $muscle "
-            "($days days since last trained).",
-      );
-    }
-
-    if (streak > 0) {
-      return (
-        title: "Streak secured",
-        body: "${streak}-week streak is intact. Rest well tonight "
-            "and let's keep it going tomorrow.",
-      );
-    }
-
     final opts = [
       (
         title: "Good session!",
@@ -372,59 +343,91 @@ class NotificationService {
 
   static ({String title, String body}) _eveningContent(
       WorkoutProvider p, {required bool trained}) {
+    final now = DateTime.now();
     final nudges = p.getMuscleNudges();
     final streak = p.getCurrentStreakWeeks();
     final nextMuscle = nudges.isNotEmpty ? _capFirst(nudges.first.muscleGroup) : null;
     final daysSince = nudges.isNotEmpty ? nudges.first.daysSince : 0;
 
     if (trained) {
-      // Trained today — recovery + tomorrow's plan
-      if (nextMuscle != null) {
+      // Trained today — celebrate streak + sleep/recovery + tomorrow's target
+      if (streak > 0 && nextMuscle != null) {
         return (
-          title: "Good session today",
-          body: "Rest up and fuel well. Tomorrow: $nextMuscle "
-              "hasn't been trained in $daysSince days — make it the focus.",
+          title: "$streak week${streak > 1 ? 's' : ''} and counting 💪",
+          body: "Great session. Let your muscles recover tonight — "
+              "7–8 hrs of sleep does more than any supplement. "
+              "Tomorrow: $nextMuscle ($daysSince days).",
         );
       }
       if (streak > 0) {
         return (
-          title: "Streak intact",
+          title: "Streak secured",
           body: "$streak week${streak > 1 ? 's' : ''} strong. "
-              "Sleep well — let's keep it going tomorrow.",
+              "Sleep is when the gains happen — don't cut it short tonight.",
         );
       }
-      final opts = [
-        (title: "Recovery mode", body: "Protein, water, sleep. Your muscles are rebuilding right now."),
-        (title: "Good session", body: "7–8 hours tonight will do more for your gains than any supplement."),
-        (title: "Session done", body: "Consistent beats intense. Rest up and hit it again tomorrow."),
-      ];
-      return opts[DateTime.now().day % opts.length];
-    } else {
-      // Rest day — tomorrow's plan
       if (nextMuscle != null) {
         return (
-          title: "Tomorrow's plan",
-          body: "$nextMuscle hasn't been trained in $daysSince days. "
-              "Make it tomorrow's focus.",
+          title: "Recovery time",
+          body: "Good work today. Relax the muscles you trained, "
+              "eat your protein, and sleep well. Tomorrow: $nextMuscle.",
         );
       }
-      if (streak > 0) {
-        final needed = _sessionsNeededThisWeek(p);
-        if (needed > 0) {
-          final plural = needed == 1 ? 'session' : 'sessions';
-          return (
-            title: "Plan tomorrow",
-            body: "$needed more $plural needed to keep your $streak-week streak. "
-                "Schedule it tonight.",
-          );
-        }
+      final opts = [
+        (
+          title: "Sleep = gains",
+          body: "Your muscles grow while you sleep, not while you lift. "
+              "Get 7–8 hours tonight and let the work pay off."
+        ),
+        (
+          title: "Recovery mode on",
+          body: "Protein ✓ Water ✓ Now sleep. "
+              "Deep sleep is when growth hormone peaks — protect it."
+        ),
+        (
+          title: "Wind down right",
+          body: "Great session today. Dim the lights, put the phone down, "
+              "and let your body do the repair work it needs tonight."
+        ),
+      ];
+      return opts[now.day % opts.length];
+    } else {
+      // Rest day — streak danger check, tomorrow's plan, sleep nudge
+      final needed = _sessionsNeededThisWeek(p);
+      final daysLeft = _daysLeftInWeek(p.weekStartDay);
+      if (streak > 0 && needed > 0 && daysLeft <= 1) {
+        final plural = needed == 1 ? 'session' : 'sessions';
+        return (
+          title: "Last chance for the streak",
+          body: "Need $needed more $plural to keep your $streak-week streak. "
+              "Tomorrow is your window — make it count.",
+        );
+      }
+      if (nextMuscle != null) {
+        return (
+          title: "Tomorrow's target: $nextMuscle",
+          body: "$nextMuscle hasn't been trained in $daysSince days. "
+              "Plan it now, sleep well, and show up ready.",
+        );
       }
       final opts = [
-        (title: "Plan tomorrow", body: "Take 2 minutes tonight to decide what you're training tomorrow. It makes a difference."),
-        (title: "Tomorrow's session", body: "What muscle group needs work? Plan it now so you show up ready."),
-        (title: "Rest day check-in", body: "Feeling recovered? Lock in tomorrow's workout before you sleep."),
+        (
+          title: "Rest well tonight",
+          body: "Sleep is training. 7–8 hours of quality sleep improves "
+              "strength, recovery, and focus. Make it a priority."
+        ),
+        (
+          title: "Plan tomorrow",
+          body: "Take 2 minutes now to decide what you're training tomorrow. "
+              "People who plan train 40% more consistently."
+        ),
+        (
+          title: "Good sleep = better lifts",
+          body: "Poor sleep tanks testosterone and recovery. "
+              "Tonight matters. Wind down and get your 7–8 hours."
+        ),
       ];
-      return opts[DateTime.now().day % opts.length];
+      return opts[now.day % opts.length];
     }
   }
 
