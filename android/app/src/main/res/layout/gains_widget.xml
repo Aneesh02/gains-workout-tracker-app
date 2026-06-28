@@ -5,65 +5,105 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_background"
-    android:padding="16dp">
+    android:paddingStart="18dp"
+    android:paddingEnd="18dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp">
 
-    <!-- Header -->
-    <TextView
-        android:id="@+id/widget_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="GAINS"
-        android:textColor="#E8E8E8"
-        android:textSize="11sp"
-        android:letterSpacing="0.15"
-        android:textStyle="bold"
-        android:alpha="0.5" />
-
-    <!-- Streak row -->
+    <!-- Header row -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginTop="4dp">
+        android:gravity="center_vertical">
 
         <TextView
-            android:id="@+id/widget_streak_number"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="GAINS"
+            android:textColor="#FFFFFFFF"
+            android:textSize="10sp"
+            android:letterSpacing="0.2"
+            android:textStyle="bold"
+            android:alpha="0.4" />
+
+        <TextView
+            android:id="@+id/widget_weekly_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0"
-            android:textColor="#FFFFFF"
-            android:textSize="32sp"
+            android:text="0 / 0 this week"
+            android:textColor="#64B5F6"
+            android:textSize="10sp"
             android:textStyle="bold" />
+    </LinearLayout>
 
+    <!-- Spacer -->
+    <android.widget.Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Main stats row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Streak block -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginStart="6dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <TextView
+                android:id="@+id/widget_streak_number"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="week streak"
-                android:textColor="#AAAAAA"
-                android:textSize="11sp" />
+                android:text="0"
+                android:textColor="#FF6B35"
+                android:textSize="40sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false" />
 
-            <TextView
-                android:id="@+id/widget_weekly"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0 / 0 this week"
-                android:textColor="#AAAAAA"
-                android:textSize="11sp" />
+                android:orientation="vertical"
+                android:layout_marginStart="8dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="WEEK"
+                    android:textColor="#FF6B35"
+                    android:textSize="9sp"
+                    android:letterSpacing="0.1"
+                    android:textStyle="bold"
+                    android:alpha="0.8" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="STREAK"
+                    android:textColor="#FF6B35"
+                    android:textSize="9sp"
+                    android:letterSpacing="0.1"
+                    android:textStyle="bold"
+                    android:alpha="0.8" />
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- Spacer -->
         <android.widget.Space
             android:layout_width="0dp"
             android:layout_height="1dp"
             android:layout_weight="1" />
 
+        <!-- Volume block -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -75,18 +115,22 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="—"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:textColor="#A5D6A7"
+                android:textSize="22sp"
                 android:textStyle="bold"
-                android:gravity="end" />
+                android:gravity="end"
+                android:includeFontPadding="false" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="this week"
-                android:textColor="#AAAAAA"
-                android:textSize="10sp"
-                android:gravity="end" />
+                android:text="VOLUME"
+                android:textColor="#A5D6A7"
+                android:textSize="9sp"
+                android:letterSpacing="0.1"
+                android:textStyle="bold"
+                android:gravity="end"
+                android:alpha="0.7" />
         </LinearLayout>
     </LinearLayout>
 

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_small_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@drawable/widget_background"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:gravity="center_vertical">
+
+    <!-- Streak -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:id="@+id/widget_small_streak"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textColor="#FF6B35"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="WKS"
+            android:textColor="#FF6B35"
+            android:textSize="8sp"
+            android:letterSpacing="0.1"
+            android:textStyle="bold"
+            android:alpha="0.7"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="32dp"
+        android:background="#33FFFFFF"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp" />
+
+    <!-- This week -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:id="@+id/widget_small_weekly"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0/0"
+            android:textColor="#64B5F6"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="WEEK"
+            android:textColor="#64B5F6"
+            android:textSize="8sp"
+            android:letterSpacing="0.1"
+            android:textStyle="bold"
+            android:alpha="0.7"
+            android:gravity="center" />
+    </LinearLayout>
+
+</LinearLayout>
