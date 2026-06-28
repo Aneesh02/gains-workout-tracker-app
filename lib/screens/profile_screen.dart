@@ -1428,12 +1428,12 @@ class _ImportTileState extends State<_ImportTile> {
       final jsonList = await compute(parseCsvBackground, content);
       final sessions =
           jsonList.map((j) => WorkoutSession.fromJson(j)).toList();
-      final added = widget.provider.importFromStrong(sessions);
+      final added = widget.provider.importParsedSessions(sessions);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(added == 0
               ? 'Nothing new — all sessions already imported'
-              : 'Imported $added workout${added == 1 ? '' : 's'} from Strong'),
+              : 'Imported $added workout${added == 1 ? '' : 's'} from CSV'),
         ));
       }
     } catch (e) {

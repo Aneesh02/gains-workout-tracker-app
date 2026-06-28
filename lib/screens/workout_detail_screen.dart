@@ -40,7 +40,7 @@ class WorkoutDetailScreen extends StatelessWidget {
       }
       buf.writeln();
     }
-    buf.write('via Strong Clone');
+    buf.write('via GAINS');
     return buf.toString();
   }
 

@@ -738,10 +738,10 @@ class WorkoutProvider extends ChangeNotifier {
     if (record != null) _archiveSessionBackground(record);
   }
 
-  /// Imports parsed sessions from a Strong CSV export.
+  /// Imports parsed sessions from a CSV export.
   /// Skips sessions whose startTime already exists in history (within 60 s).
   /// Returns the number of sessions actually added.
-  int importFromStrong(List<WorkoutSession> sessions) {
+  int importParsedSessions(List<WorkoutSession> sessions) {
     final existingTimes = _history.map((s) => s.startTime).toList();
     final newSessions = sessions.where((s) => !existingTimes.any(
       (t) => t.difference(s.startTime).inSeconds.abs() < 60,

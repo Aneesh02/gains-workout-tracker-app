@@ -80,7 +80,7 @@ class _CongratsScreenState extends State<CongratsScreen> {
     if (session.personalRecords.isNotEmpty) {
       buf.writeln('🏆 PRs: ${session.personalRecords.join(', ')}');
     }
-    buf.write('via Strong Clone');
+    buf.write('via GAINS');
     return buf.toString();
   }
 

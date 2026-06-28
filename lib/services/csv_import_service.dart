@@ -20,7 +20,7 @@ class CsvImportService {
     for (final e in defaultExercises) e.name: e,
   };
 
-  /// Parses a Strong-format semicolon-delimited CSV and returns a list of
+  /// Parses a GAINS-format semicolon-delimited CSV and returns a list of
   /// WorkoutSession objects sorted newest-first.
   static List<WorkoutSession> parse(String csvContent) {
     final lines = const LineSplitter().convert(csvContent);
