@@ -145,9 +145,7 @@ class NotificationService {
   static Future<String?> reschedule(
       WorkoutProvider provider, GymSettings settings) async {
     // Cancel only reminder slots — never touch the active workout notification
-    await _plugin.cancel(_idMorning);
-    await _plugin.cancel(_idPrimary);
-    await _plugin.cancel(_idEvening);
+    await cancelReminders();
     if (!settings.remindersEnabled) return null;
 
     final trained = provider.workedOutToday(settings.dayStartHour);
@@ -163,9 +161,10 @@ class NotificationService {
   }
 
   static Future<void> cancelReminders() async {
-    await _plugin.cancel(_idMorning);
-    await _plugin.cancel(_idPrimary);
-    await _plugin.cancel(_idEvening);
+    const ch = MethodChannel('com.gains.app/battery');
+    for (final id in [_idMorning, _idPrimary, _idEvening]) {
+      try { await ch.invokeMethod('cancelReminder', {'id': id}); } catch (_) {}
+    }
   }
 
   // ── Slot A — Morning pre-workout (9 AM) ──────────────────────────────────
@@ -463,7 +462,7 @@ class NotificationService {
 
   // ── Scheduling ────────────────────────────────────────────────────────────
 
-  /// Immediately shows a test notification — use to verify the pipeline works.
+  /// Immediately shows a test notification to verify the pipeline works.
   static Future<String?> sendTestNow() async {
     try {
       await _plugin.show(
@@ -485,36 +484,25 @@ class NotificationService {
     }
   }
 
+  static int _nextEpochMs(int hour, int minute) {
+    final now = DateTime.now();
+    var t = DateTime(now.year, now.month, now.day, hour, minute);
+    if (t.isBefore(now)) t = t.add(const Duration(days: 1));
+    return t.millisecondsSinceEpoch;
+  }
+
   static Future<String?> _schedule(
       int id, int hour, int minute, String title, String body) async {
     try {
-      final now = tz.TZDateTime.now(tz.local);
-      var scheduled =
-          tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-      if (scheduled.isBefore(now)) {
-        scheduled = scheduled.add(const Duration(days: 1));
-      }
-
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduled,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            'Training Reminders',
-            channelDescription: 'Smart daily training nudges from Gains',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            icon: '@mipmap/ic_launcher',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
+      const ch = MethodChannel('com.gains.app/battery');
+      await ch.invokeMethod('scheduleReminder', {
+        'id': id,
+        'epochMs': _nextEpochMs(hour, minute),
+        'title': title,
+        'body': body,
+        'hour': hour,
+        'minute': minute,
+      });
       return null;
     } catch (e) {
       return e.toString();

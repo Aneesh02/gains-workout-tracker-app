@@ -1,5 +1,6 @@
 package com.gains.app
 
+import android.app.AlarmManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -13,11 +14,37 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.gains.app/battery")
             .setMethodCallHandler { call, result ->
-                if (call.method == "requestIgnoreBatteryOptimization") {
-                    requestBatteryOptimizationExemption()
-                    result.success(null)
-                } else {
-                    result.notImplemented()
+                when (call.method) {
+                    "requestIgnoreBatteryOptimization" -> {
+                        requestBatteryOptimizationExemption()
+                        result.success(null)
+                    }
+                    "canScheduleExact" -> {
+                        val am = getSystemService(ALARM_SERVICE) as AlarmManager
+                        val can = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                            am.canScheduleExactAlarms() else true
+                        result.success(can)
+                    }
+                    "scheduleReminder" -> {
+                        try {
+                            val id     = call.argument<Int>("id") ?: 0
+                            val epochMs = (call.argument<Any>("epochMs") as? Number)?.toLong() ?: 0L
+                            val title  = call.argument<String>("title") ?: ""
+                            val body   = call.argument<String>("body") ?: ""
+                            val hour   = call.argument<Int>("hour") ?: 0
+                            val min    = call.argument<Int>("minute") ?: 0
+                            ReminderReceiver.schedule(this, id, epochMs, title, body, hour, min)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("ALARM_ERROR", e.message, null)
+                        }
+                    }
+                    "cancelReminder" -> {
+                        val id = call.argument<Int>("id") ?: 0
+                        ReminderReceiver.cancel(this, id)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
                 }
             }
     }

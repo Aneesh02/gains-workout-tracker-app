@@ -74,6 +74,7 @@
                 android:resource="@xml/gains_widget_small_info" />
         </receiver>
 
+        <receiver android:exported="false" android:name=".ReminderReceiver"/>
         <receiver android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
         <receiver android:exported="false"
