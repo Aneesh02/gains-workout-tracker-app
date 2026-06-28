@@ -865,7 +865,12 @@ class SettingsScreen extends StatelessWidget {
                 final newSettings =
                     provider.gymSettings.copyWith(remindersEnabled: val);
                 provider.updateGymSettings(newSettings);
-                NotificationService.reschedule(provider, newSettings);
+                final err = await NotificationService.reschedule(provider, newSettings);
+                if (err != null && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Reminder error: $err'), backgroundColor: Colors.red),
+                  );
+                }
               },
             ),
             contentPadding:
@@ -905,6 +910,28 @@ class SettingsScreen extends StatelessWidget {
             minute: s.eveningMinute,
             onPicked: (t) => provider.gymSettings
                 .copyWith(eveningHour: t.hour, eveningMinute: t.minute),
+          ),
+          // Test notification button
+          Container(
+            margin: const EdgeInsets.only(bottom: 1),
+            decoration: const BoxDecoration(color: AppColors.surface),
+            child: ListTile(
+              leading: const Icon(Icons.send_outlined, color: AppColors.blue, size: 22),
+              title: const Text('Send test notification',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+              subtitle: const Text('Fires immediately to verify it works',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              onTap: () async {
+                final err = await NotificationService.sendTestNow();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(err == null ? 'Test notification sent!' : 'Error: $err'),
+                    backgroundColor: err == null ? AppColors.checkGreen : Colors.red,
+                  ));
+                }
+              },
+            ),
           ),
         ],
       ],

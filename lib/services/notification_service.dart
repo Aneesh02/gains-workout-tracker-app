@@ -141,19 +141,25 @@ class NotificationService {
   }
 
   /// Call on app open AND immediately after a workout is finished.
-  static Future<void> reschedule(
+  /// Returns null on full success, or an error string if any slot failed.
+  static Future<String?> reschedule(
       WorkoutProvider provider, GymSettings settings) async {
     // Cancel only reminder slots — never touch the active workout notification
     await _plugin.cancel(_idMorning);
     await _plugin.cancel(_idPrimary);
     await _plugin.cancel(_idEvening);
-    if (!settings.remindersEnabled) return;
+    if (!settings.remindersEnabled) return null;
 
     final trained = provider.workedOutToday(settings.dayStartHour);
 
-    await _scheduleSlotA(provider, settings);
-    await _scheduleSlotB(provider, settings, trained: trained);
-    await _scheduleSlotC(provider, settings, trained: trained);
+    final errors = <String>[];
+    final eA = await _scheduleSlotA(provider, settings);
+    if (eA != null) errors.add('Morning: $eA');
+    final eB = await _scheduleSlotB(provider, settings, trained: trained);
+    if (eB != null) errors.add('Midday: $eB');
+    final eC = await _scheduleSlotC(provider, settings, trained: trained);
+    if (eC != null) errors.add('Evening: $eC');
+    return errors.isEmpty ? null : errors.join('; ');
   }
 
   static Future<void> cancelReminders() async {
@@ -164,11 +170,10 @@ class NotificationService {
 
   // ── Slot A — Morning pre-workout (9 AM) ──────────────────────────────────
 
-  static Future<void> _scheduleSlotA(
+  static Future<String?> _scheduleSlotA(
       WorkoutProvider provider, GymSettings settings) async {
     final content = _morningContent(provider);
-    await _schedule(
-        _idMorning, settings.morningHour, settings.morningMinute,
+    return _schedule(_idMorning, settings.morningHour, settings.morningMinute,
         content.title, content.body);
   }
 
@@ -213,14 +218,13 @@ class NotificationService {
 
   // ── Slot B — Primary time (user-configured) ───────────────────────────────
 
-  static Future<void> _scheduleSlotB(
+  static Future<String?> _scheduleSlotB(
       WorkoutProvider provider, GymSettings settings,
       {required bool trained}) async {
     final content = trained
         ? _postWorkoutPrimaryContent(provider)
         : _preWorkoutPrimaryContent(provider);
-    await _schedule(
-        _idPrimary, settings.reminderHour, settings.reminderMinute,
+    return _schedule(_idPrimary, settings.reminderHour, settings.reminderMinute,
         content.title, content.body);
   }
 
@@ -359,12 +363,11 @@ class NotificationService {
 
   // ── Slot C — Evening plan (user-configured, every day) ───────────────────
 
-  static Future<void> _scheduleSlotC(
+  static Future<String?> _scheduleSlotC(
       WorkoutProvider provider, GymSettings settings,
       {required bool trained}) async {
     final content = _eveningContent(provider, trained: trained);
-    await _schedule(
-        _idEvening, settings.eveningHour, settings.eveningMinute,
+    return _schedule(_idEvening, settings.eveningHour, settings.eveningMinute,
         content.title, content.body);
   }
 
@@ -460,36 +463,61 @@ class NotificationService {
 
   // ── Scheduling ────────────────────────────────────────────────────────────
 
-  static Future<void> _schedule(
-      int id, int hour, int minute, String title, String body) async {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduled =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
-    }
-    // ignore: avoid_print
-    print('[NotificationService] scheduling id=$id "$title" at $scheduled (now=$now)');
-
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduled,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          'Training Reminders',
-          channelDescription: 'Smart daily training nudges from Gains',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          icon: '@mipmap/ic_launcher',
+  /// Immediately shows a test notification — use to verify the pipeline works.
+  static Future<String?> sendTestNow() async {
+    try {
+      await _plugin.show(
+        99,
+        'GAINS reminder test',
+        'Notifications are working!',
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId, 'Training Reminders',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
         ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+      );
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  static Future<String?> _schedule(
+      int id, int hour, int minute, String title, String body) async {
+    try {
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduled =
+          tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+      if (scheduled.isBefore(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduled,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            'Training Reminders',
+            channelDescription: 'Smart daily training nudges from Gains',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
   }
 }
