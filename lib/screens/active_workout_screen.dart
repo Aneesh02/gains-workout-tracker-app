@@ -1052,7 +1052,11 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         children: [
           _restAdjBtn('-30', () {
             final info = _restNotifier.value;
-            if (info != null) _restNotifier.value = info.adjust(-30);
+            if (info != null) {
+              final updated = info.adjust(-30);
+              _restNotifier.value = updated;
+              NotificationService.updateWorkoutResting(remainingSeconds: updated.remaining);
+            }
           }),
           const SizedBox(width: 6),
           Expanded(
@@ -1095,7 +1099,11 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           const SizedBox(width: 6),
           _restAdjBtn('+30', () {
             final info = _restNotifier.value;
-            if (info != null) _restNotifier.value = info.adjust(30);
+            if (info != null) {
+              final updated = info.adjust(30);
+              _restNotifier.value = updated;
+              NotificationService.updateWorkoutResting(remainingSeconds: updated.remaining);
+            }
           }),
         ],
       ),
