@@ -1143,8 +1143,17 @@ class _HealthConnectTileState extends State<_HealthConnectTile> {
 
   Future<void> _request() async {
     setState(() => _checking = true);
-    final ok = await HealthConnectService.requestPermission();
-    if (mounted) setState(() { _granted = ok; _checking = false; });
+    try {
+      final ok = await HealthConnectService.requestPermission();
+      if (mounted) setState(() { _granted = ok; _checking = false; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _checking = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Health Connect: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override

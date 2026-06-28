@@ -47,6 +47,10 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="gains" android:host="open"/>
             </intent-filter>
+            <!-- Required for Health Connect permission rationale -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -107,8 +111,5 @@
         </intent>
         <!-- Health Connect -->
         <package android:name="com.google.android.apps.healthdata" />
-        <intent>
-            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-        </intent>
     </queries>
 </manifest>
