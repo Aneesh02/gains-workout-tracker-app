@@ -1458,6 +1458,23 @@ class WorkoutProvider extends ChangeNotifier {
     return result;
   }
 
+  /// Returns all completed sets for the last [limit] sessions that include [exerciseId].
+  List<({DateTime date, List<SetEntry> sets})> getExerciseSetsHistory(
+      String exerciseId, {int limit = 3}) {
+    final result = <({DateTime date, List<SetEntry> sets})>[];
+    for (final session in _history) {
+      final match = session.exercises
+          .where((e) => e.exerciseId == exerciseId)
+          .firstOrNull;
+      if (match == null) continue;
+      final completed = match.sets.where((s) => s.completed).toList();
+      if (completed.isEmpty) continue;
+      result.add((date: session.startTime, sets: completed));
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+
   // ── Post-workout insights ──────────────────────────────────────────────────
 
   PostWorkoutInsights getPostWorkoutInsights(WorkoutSession session) {

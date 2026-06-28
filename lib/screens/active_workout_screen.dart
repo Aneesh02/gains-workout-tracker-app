@@ -8,7 +8,7 @@ import '../services/notification_service.dart';
 import '../services/obsidian_export_service.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/sound_service.dart';
-import '../providers/workout_provider.dart' show WorkoutProvider, ExerciseHistoryEntry;
+import '../providers/workout_provider.dart' show WorkoutProvider;
 import '../models/workout_exercise.dart';
 import '../models/set_entry.dart';
 import '../models/exercise.dart';
@@ -333,8 +333,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   void _showExerciseHistory(BuildContext context, WorkoutExercise ex) {
-    final all = context.read<WorkoutProvider>().getExerciseHistory(ex.exerciseId);
-    final sessions = all.reversed.take(3).toList();
+    final sessions = context.read<WorkoutProvider>()
+        .getExerciseSetsHistory(ex.exerciseId, limit: 3);
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -376,8 +376,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                   ),
                 )
               else
-                for (final entry in sessions) ...[
-                  _historySessionBlock(entry),
+                for (final session in sessions) ...[
+                  _historySessionBlock(session.date, session.sets),
                   const SizedBox(height: 12),
                 ],
             ],
@@ -387,39 +387,61 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     );
   }
 
-  Widget _historySessionBlock(ExerciseHistoryEntry entry) {
-    final d = entry.date;
-    final dateStr = '${d.day}/${d.month}/${d.year}';
-    String summary;
-    if (entry.bestKm != null || entry.bestTime != null) {
-      final parts = <String>[];
-      if (entry.bestKm != null) parts.add('${entry.bestKm} km');
-      if (entry.bestTime != null && entry.bestTime!.isNotEmpty) {
-        final secs = int.tryParse(entry.bestTime!) ?? 0;
-        parts.add('${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}');
-      }
-      summary = parts.join(' · ');
-    } else {
-      final w = entry.weight % 1 == 0
-          ? entry.weight.toInt().toString()
-          : entry.weight.toString();
-      summary = '$w kg × ${entry.reps}  ·  ${entry.setsCompleted} sets  ·  ${entry.volume} kg vol';
-    }
+  Widget _historySessionBlock(DateTime date, List<SetEntry> sets) {
+    final dateStr = '${date.day}/${date.month}/${date.year}';
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(children: [
-        Expanded(
-          child: Text(summary,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
-        ),
-        Text(dateStr,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(dateStr,
+              style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          for (int i = 0; i < sets.length; i++) ...[
+            _historySetRow(i + 1, sets[i]),
+            if (i < sets.length - 1) const SizedBox(height: 3),
+          ],
+        ],
+      ),
     );
+  }
+
+  Widget _historySetRow(int num, SetEntry s) {
+    String label;
+    if (s.kmInput.isNotEmpty || s.timeInput.isNotEmpty) {
+      final parts = <String>[];
+      if (s.kmInput.isNotEmpty) parts.add('${s.kmInput} km');
+      if (s.timeInput.isNotEmpty) {
+        final secs = int.tryParse(s.timeInput) ?? 0;
+        parts.add('${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}');
+      }
+      label = parts.join(' · ');
+    } else {
+      final w = s.weightInput.isNotEmpty ? s.weightInput : '—';
+      final r = s.repsInput.isNotEmpty ? s.repsInput : '—';
+      label = '$w kg × $r';
+    }
+    final rpe = s.rpe != null
+        ? '  @${s.rpe! % 1 == 0 ? s.rpe!.toInt() : s.rpe}'
+        : '';
+    return Row(children: [
+      SizedBox(
+        width: 20,
+        child: Text('$num',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+      ),
+      Text(label,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+      Text(rpe,
+          style: const TextStyle(color: AppColors.blue, fontSize: 12)),
+    ]);
   }
 
   Widget _menuTile(IconData icon, String title, String subtitle,
