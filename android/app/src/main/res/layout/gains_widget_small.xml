@@ -9,14 +9,15 @@
     android:paddingEnd="14dp"
     android:paddingTop="10dp"
     android:paddingBottom="10dp"
-    android:gravity="center_vertical">
+    android:gravity="center">
 
-    <!-- Streak -->
+    <!-- Streak block -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:gravity="center">
 
         <TextView
             android:id="@+id/widget_small_streak"
@@ -35,26 +36,19 @@
             android:text="WKS"
             android:textColor="#FF6B35"
             android:textSize="8sp"
-            android:letterSpacing="0.1"
             android:textStyle="bold"
             android:alpha="0.7"
             android:gravity="center" />
+
     </LinearLayout>
 
-    <!-- Divider -->
-    <View
-        android:layout_width="1dp"
-        android:layout_height="32dp"
-        android:background="#33FFFFFF"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp" />
-
-    <!-- This week -->
+    <!-- Weekly block -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:gravity="center">
 
         <TextView
             android:id="@+id/widget_small_weekly"
@@ -73,10 +67,10 @@
             android:text="WEEK"
             android:textColor="#64B5F6"
             android:textSize="8sp"
-            android:letterSpacing="0.1"
             android:textStyle="bold"
             android:alpha="0.7"
             android:gravity="center" />
+
     </LinearLayout>
 
 </LinearLayout>

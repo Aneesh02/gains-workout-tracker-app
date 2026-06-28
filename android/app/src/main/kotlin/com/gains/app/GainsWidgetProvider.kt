@@ -17,7 +17,9 @@ class GainsWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         for (widgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, widgetId)
+            try {
+                updateWidget(context, appWidgetManager, widgetId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -36,19 +38,19 @@ class GainsWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_streak_number, streak.toString())
         views.setTextViewText(R.id.widget_weekly_label, "$weeklyCount / $weeklyTarget this week")
         views.setTextViewText(R.id.widget_volume, volume)
-        views.setOnClickPendingIntent(R.id.widget_root_layout, buildPendingIntent(context))
+        views.setOnClickPendingIntent(R.id.widget_root_layout, buildPendingIntent(context, 0))
 
         appWidgetManager.updateAppWidget(widgetId, views)
     }
 
-    private fun buildPendingIntent(context: Context): PendingIntent {
+    private fun buildPendingIntent(context: Context, requestCode: Int): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             data = Uri.parse("gains://open/metrics")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         return PendingIntent.getActivity(
-            context, 0, intent,
+            context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
@@ -62,7 +64,9 @@ class GainsWidgetSmallProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         for (widgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, widgetId)
+            try {
+                updateWidget(context, appWidgetManager, widgetId)
+            } catch (_: Exception) {}
         }
     }
 
@@ -79,19 +83,19 @@ class GainsWidgetSmallProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.gains_widget_small)
         views.setTextViewText(R.id.widget_small_streak, streak.toString())
         views.setTextViewText(R.id.widget_small_weekly, "$weeklyCount/$weeklyTarget")
-        views.setOnClickPendingIntent(R.id.widget_small_root, buildPendingIntent(context))
+        views.setOnClickPendingIntent(R.id.widget_small_root, buildPendingIntent(context, 1))
 
         appWidgetManager.updateAppWidget(widgetId, views)
     }
 
-    private fun buildPendingIntent(context: Context): PendingIntent {
+    private fun buildPendingIntent(context: Context, requestCode: Int): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             data = Uri.parse("gains://open/metrics")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         return PendingIntent.getActivity(
-            context, 1, intent,
+            context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
