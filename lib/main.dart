@@ -61,6 +61,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // Request notification permission on first launch (Android 13+)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.requestPermission();
+    });
     // Handle widget tap that launched the app
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetUri);
     // Handle widget tap when app is already running
