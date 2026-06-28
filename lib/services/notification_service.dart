@@ -1,14 +1,15 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 import '../providers/workout_provider.dart';
 import '../models/gym_settings.dart';
 
-/// Three daily notification slots — all context-aware.
+/// Three daily notification slots — all fire every day, all context-aware.
 ///
-/// Slot A (ID 0): Morning, 9:00 AM — pre-workout focus; skipped if already trained.
-/// Slot B (ID 1): User-configured time — pre-workout nudge OR post-workout celebration.
-/// Slot C (ID 2): Evening, 8:30 PM — post-workout recovery only; skipped if not trained.
+/// Slot A (ID 0): Morning (default 9:00 AM) — what to train today.
+/// Slot B (ID 1): Midday (user-configured) — pre-workout nudge OR post-workout celebration.
+/// Slot C (ID 2): Evening (default 9:00 PM) — tomorrow's plan OR recovery if trained today.
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static const _channelId = 'gains_reminders';
@@ -16,18 +17,120 @@ class NotificationService {
   static const _idMorning = 0;
   static const _idPrimary = 1;
   static const _idEvening = 2;
+  static const _idWorkout = 3;
+  static const _workoutChannelId = 'gains_workout';
 
   static Future<void> init() async {
     tz.initializeTimeZones();
+    final timezoneName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timezoneName));
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _plugin.initialize(const InitializationSettings(android: android));
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImpl?.createNotificationChannel(const AndroidNotificationChannel(
+      _channelId,
+      'Training Reminders',
+      description: 'Smart daily training nudges from Gains',
+      importance: Importance.defaultImportance,
+    ));
+    await androidImpl?.createNotificationChannel(const AndroidNotificationChannel(
+      _workoutChannelId,
+      'Active Workout',
+      description: 'Shown while a workout is in progress',
+      importance: Importance.low,
+    ));
+  }
+
+  // ── Active workout notification ───────────────────────────────────────────
+
+  static Future<void> showWorkoutNotification({
+    required String exerciseName,
+    required int setsCompleted,
+    required int totalSets,
+  }) async {
+    await _plugin.show(
+      _idWorkout,
+      exerciseName,
+      '$setsCompleted / $totalSets sets completed',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _workoutChannelId,
+          'Active Workout',
+          channelDescription: 'Shown while a workout is in progress',
+          importance: Importance.low,
+          priority: Priority.low,
+          ongoing: true,
+          autoCancel: false,
+          icon: '@mipmap/ic_launcher',
+          usesChronometer: false,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> updateWorkoutResting({
+    required int remainingSeconds,
+  }) async {
+    final endTime = DateTime.now()
+        .add(Duration(seconds: remainingSeconds))
+        .millisecondsSinceEpoch;
+    await _plugin.show(
+      _idWorkout,
+      'Resting',
+      remainingSeconds > 0 ? 'Rest timer running' : 'Rest done — start your set',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _workoutChannelId,
+          'Active Workout',
+          importance: Importance.low,
+          priority: Priority.low,
+          ongoing: true,
+          autoCancel: false,
+          icon: '@mipmap/ic_launcher',
+          usesChronometer: remainingSeconds > 0,
+          chronometerCountDown: true,
+          when: remainingSeconds > 0 ? endTime : null,
+          showWhen: remainingSeconds > 0,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> updateWorkoutRestDone({
+    required String exerciseName,
+    required int setsCompleted,
+    required int totalSets,
+  }) async {
+    await _plugin.show(
+      _idWorkout,
+      'Rest done — start your set',
+      '$exerciseName · $setsCompleted / $totalSets sets',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _workoutChannelId,
+          'Active Workout',
+          importance: Importance.low,
+          priority: Priority.low,
+          ongoing: true,
+          autoCancel: false,
+          icon: '@mipmap/ic_launcher',
+        ),
+      ),
+    );
+  }
+
+  static Future<void> cancelWorkoutNotification() async {
+    await _plugin.cancel(_idWorkout);
   }
 
   static Future<bool> requestPermission() async {
     final android = _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-    return await android?.requestNotificationsPermission() ?? false;
+    final granted = await android?.requestNotificationsPermission() ?? false;
+    if (granted) await android?.requestExactAlarmsPermission();
+    return granted;
   }
 
   /// Call on app open AND immediately after a workout is finished.
@@ -38,24 +141,21 @@ class NotificationService {
 
     final trained = provider.workedOutToday(settings.dayStartHour);
 
-    if (!trained) {
-      // Pre-workout: morning focus + primary nudge
-      await _scheduleSlotA(provider);
-      await _scheduleSlotB(provider, settings, trained: false);
-    } else {
-      // Post-workout: primary celebration + evening recovery
-      await _scheduleSlotB(provider, settings, trained: true);
-      await _scheduleSlotC(provider);
-    }
+    await _scheduleSlotA(provider, settings);
+    await _scheduleSlotB(provider, settings, trained: trained);
+    await _scheduleSlotC(provider, settings, trained: trained);
   }
 
   static Future<void> cancelAll() => _plugin.cancelAll();
 
   // ── Slot A — Morning pre-workout (9 AM) ──────────────────────────────────
 
-  static Future<void> _scheduleSlotA(WorkoutProvider provider) async {
+  static Future<void> _scheduleSlotA(
+      WorkoutProvider provider, GymSettings settings) async {
     final content = _morningContent(provider);
-    await _schedule(_idMorning, 9, 0, content.title, content.body);
+    await _schedule(
+        _idMorning, settings.morningHour, settings.morningMinute,
+        content.title, content.body);
   }
 
   static ({String title, String body}) _morningContent(WorkoutProvider p) {
@@ -243,47 +343,73 @@ class NotificationService {
     return opts[DateTime.now().day % opts.length];
   }
 
-  // ── Slot C — Evening recovery (8:30 PM, post-workout only) ───────────────
+  // ── Slot C — Evening plan (user-configured, every day) ───────────────────
 
-  static Future<void> _scheduleSlotC(WorkoutProvider provider) async {
-    final content = _eveningRecoveryContent(provider);
-    await _schedule(_idEvening, 20, 30, content.title, content.body);
+  static Future<void> _scheduleSlotC(
+      WorkoutProvider provider, GymSettings settings,
+      {required bool trained}) async {
+    final content = _eveningContent(provider, trained: trained);
+    await _schedule(
+        _idEvening, settings.eveningHour, settings.eveningMinute,
+        content.title, content.body);
   }
 
-  static ({String title, String body}) _eveningRecoveryContent(
-      WorkoutProvider p) {
+  static ({String title, String body}) _eveningContent(
+      WorkoutProvider p, {required bool trained}) {
     final nudges = p.getMuscleNudges();
     final streak = p.getCurrentStreakWeeks();
+    final nextMuscle = nudges.isNotEmpty ? _capFirst(nudges.first.muscleGroup) : null;
+    final daysSince = nudges.isNotEmpty ? nudges.first.daysSince : 0;
 
-    // Tomorrow's target muscle
-    if (nudges.isNotEmpty) {
-      final muscle = _capFirst(nudges.first.muscleGroup);
-      return (
-        title: "Recovery mode",
-        body: "Sleep is gains. Eat your protein tonight. "
-            "Tomorrow: $muscle is waiting — it's been ${nudges.first.daysSince} days.",
-      );
-    }
-
-    final opts = [
-      (
-        title: "Recovery time",
-        body: "Good session. 7–8 hours of sleep will do more for your gains "
-            "than any supplement."
-      ),
-      (
-        title: "Fuel up",
-        body: "Protein before bed. Your muscles are rebuilding right now. "
-            "Don't skip the recovery.",
-      ),
-      if (streak > 0)
-        (
+    if (trained) {
+      // Trained today — recovery + tomorrow's plan
+      if (nextMuscle != null) {
+        return (
+          title: "Good session today",
+          body: "Rest up and fuel well. Tomorrow: $nextMuscle "
+              "hasn't been trained in $daysSince days — make it the focus.",
+        );
+      }
+      if (streak > 0) {
+        return (
           title: "Streak intact",
-          body: "$streak week${streak > 1 ? 's' : ''} down. "
-              "Rest well — the streak continues tomorrow.",
-        ),
-    ];
-    return opts[DateTime.now().day % opts.length];
+          body: "$streak week${streak > 1 ? 's' : ''} strong. "
+              "Sleep well — let's keep it going tomorrow.",
+        );
+      }
+      final opts = [
+        (title: "Recovery mode", body: "Protein, water, sleep. Your muscles are rebuilding right now."),
+        (title: "Good session", body: "7–8 hours tonight will do more for your gains than any supplement."),
+        (title: "Session done", body: "Consistent beats intense. Rest up and hit it again tomorrow."),
+      ];
+      return opts[DateTime.now().day % opts.length];
+    } else {
+      // Rest day — tomorrow's plan
+      if (nextMuscle != null) {
+        return (
+          title: "Tomorrow's plan",
+          body: "$nextMuscle hasn't been trained in $daysSince days. "
+              "Make it tomorrow's focus.",
+        );
+      }
+      if (streak > 0) {
+        final needed = _sessionsNeededThisWeek(p);
+        if (needed > 0) {
+          final plural = needed == 1 ? 'session' : 'sessions';
+          return (
+            title: "Plan tomorrow",
+            body: "$needed more $plural needed to keep your $streak-week streak. "
+                "Schedule it tonight.",
+          );
+        }
+      }
+      final opts = [
+        (title: "Plan tomorrow", body: "Take 2 minutes tonight to decide what you're training tomorrow. It makes a difference."),
+        (title: "Tomorrow's session", body: "What muscle group needs work? Plan it now so you show up ready."),
+        (title: "Rest day check-in", body: "Feeling recovered? Lock in tomorrow's workout before you sleep."),
+      ];
+      return opts[DateTime.now().day % opts.length];
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -328,6 +454,8 @@ class NotificationService {
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
+    // ignore: avoid_print
+    print('[NotificationService] scheduling id=$id "$title" at $scheduled (now=$now)');
 
     await _plugin.zonedSchedule(
       id,

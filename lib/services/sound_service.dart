@@ -7,10 +7,21 @@ class SoundService {
 
   static bool enabled = true;
 
+  static final _ctx = AudioContext(
+    android: AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      stayAwake: false,
+      contentType: AndroidContentType.music,
+      usageType: AndroidUsageType.notification,
+      audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+    ),
+  );
+
   Future<void> _play(String file) async {
     if (!enabled) return;
     try {
       final p = AudioPlayer();
+      await p.setAudioContext(_ctx);
       await p.play(AssetSource('sounds/$file'));
       p.onPlayerComplete.listen((_) => p.dispose());
     } catch (_) {}

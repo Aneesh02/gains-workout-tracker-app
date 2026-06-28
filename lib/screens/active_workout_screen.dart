@@ -8,7 +8,7 @@ import '../services/notification_service.dart';
 import '../services/obsidian_export_service.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/sound_service.dart';
-import '../providers/workout_provider.dart';
+import '../providers/workout_provider.dart' show WorkoutProvider, ExerciseHistoryEntry;
 import '../models/workout_exercise.dart';
 import '../models/set_entry.dart';
 import '../models/exercise.dart';
@@ -54,8 +54,19 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   @override
   void initState() {
     super.initState();
-    final keepOn = context.read<WorkoutProvider>().gymSettings.keepScreenOn;
+    final p = context.read<WorkoutProvider>();
+    final keepOn = p.gymSettings.keepScreenOn;
     if (keepOn) WakelockPlus.enable();
+    final workout = p.activeWorkout;
+    if (workout != null && workout.exercises.isNotEmpty) {
+      final ex = workout.exercises.first;
+      final done = ex.sets.where((s) => s.completed).length;
+      NotificationService.showWorkoutNotification(
+        exerciseName: ex.exerciseName,
+        setsCompleted: done,
+        totalSets: ex.sets.length,
+      );
+    }
     // Timer only touches ValueNotifier — no setState, no full rebuilds.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -68,6 +79,16 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           HapticFeedback.heavyImpact();
           HapticFeedback.vibrate();
           SoundService().restOver();
+          final workout2 = context.read<WorkoutProvider>().activeWorkout;
+          if (workout2 != null && info.exIdx < workout2.exercises.length) {
+            final ex2 = workout2.exercises[info.exIdx];
+            final done2 = ex2.sets.where((s) => s.completed).length;
+            NotificationService.updateWorkoutRestDone(
+              exerciseName: ex2.exerciseName,
+              setsCompleted: done2,
+              totalSets: ex2.sets.length,
+            );
+          }
         }
       }
     });
@@ -198,6 +219,9 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               set.previousReps != null) {
             p.updateSetWeight(exIdx, setIdx, _fmtW(set.previousWeight!));
             p.updateSetReps(exIdx, setIdx, '${set.previousReps}');
+            if (set.rpe == null && set.previousRpe != null) {
+              p.updateSetRpe(exIdx, setIdx, set.previousRpe!);
+            }
           } else {
             return;
           }
@@ -207,21 +231,39 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
 
     p.toggleSetComplete(exIdx, setIdx);
     if (!wasCompleted) {
+      p.carryForwardSet(exIdx, setIdx);
       HapticFeedback.mediumImpact();
       SoundService().setComplete();
       _restNotified = false;
+      final restSecs = ex.restSeconds;
       _restNotifier.value = _RestInfo(
-        remaining: ex.restSeconds,
-        total: ex.restSeconds,
+        remaining: restSecs,
+        total: restSecs,
         exIdx: exIdx,
         setIdx: setIdx,
       );
+      final done = ex.sets.where((s) => s.completed).length;
+      if (restSecs > 0) {
+        NotificationService.updateWorkoutResting(remainingSeconds: restSecs);
+      } else {
+        NotificationService.showWorkoutNotification(
+          exerciseName: ex.exerciseName,
+          setsCompleted: done,
+          totalSets: ex.sets.length,
+        );
+      }
     } else {
       final info = _restNotifier.value;
       if (info != null && info.exIdx == exIdx && info.setIdx == setIdx) {
         _restNotified = false;
         _restNotifier.value = null;
       }
+      final done = ex.sets.where((s) => s.completed).length;
+      NotificationService.showWorkoutNotification(
+        exerciseName: ex.exerciseName,
+        setsCompleted: done,
+        totalSets: ex.sets.length,
+      );
     }
   }
 
@@ -256,6 +298,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               Navigator.pop(context);
               _showNoteDialog(exIdx, ex.notes);
             }),
+            _menuTile(Icons.history, 'History', 'Last 3 sessions', () {
+              Navigator.pop(context);
+              _showExerciseHistory(context, ex);
+            }),
             _menuTile(Icons.swap_horiz, 'Replace Exercise', '', () {
               Navigator.pop(context);
               final workout = context.read<WorkoutProvider>().activeWorkout;
@@ -283,6 +329,96 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showExerciseHistory(BuildContext context, WorkoutExercise ex) {
+    final all = context.read<WorkoutProvider>().getExerciseHistory(ex.exerciseId);
+    final sessions = all.reversed.take(3).toList();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 12),
+              Text(ex.exerciseName,
+                  style: const TextStyle(
+                      color: AppColors.blue,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Last 3 sessions',
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12)),
+              const SizedBox(height: 12),
+              if (sessions.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text('No history yet',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                )
+              else
+                for (final entry in sessions) ...[
+                  _historySessionBlock(entry),
+                  const SizedBox(height: 12),
+                ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _historySessionBlock(ExerciseHistoryEntry entry) {
+    final d = entry.date;
+    final dateStr = '${d.day}/${d.month}/${d.year}';
+    String summary;
+    if (entry.bestKm != null || entry.bestTime != null) {
+      final parts = <String>[];
+      if (entry.bestKm != null) parts.add('${entry.bestKm} km');
+      if (entry.bestTime != null && entry.bestTime!.isNotEmpty) {
+        final secs = int.tryParse(entry.bestTime!) ?? 0;
+        parts.add('${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}');
+      }
+      summary = parts.join(' · ');
+    } else {
+      final w = entry.weight % 1 == 0
+          ? entry.weight.toInt().toString()
+          : entry.weight.toString();
+      summary = '$w kg × ${entry.reps}  ·  ${entry.setsCompleted} sets  ·  ${entry.volume} kg vol';
+    }
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Text(summary,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+        ),
+        Text(dateStr,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+      ]),
     );
   }
 
@@ -428,6 +564,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
 
   void _doFinish() {
     _keyboard.dismiss();
+    NotificationService.cancelWorkoutNotification();
     final p = context.read<WorkoutProvider>();
     final session = p.finishWorkout();
     final totalWorkouts = p.history.length;
@@ -496,6 +633,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           ),
           TextButton(
             onPressed: () {
+              NotificationService.cancelWorkoutNotification();
               context.read<WorkoutProvider>().cancelWorkout();
               Navigator.pop(ctx);
               Navigator.pop(context);
@@ -534,39 +672,50 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           children: [
             _topBar(workout),
             Expanded(
-              child: ListView(
+              child: CustomScrollView(
                 controller: _scroll,
-                children: [
-                  _workoutHeader(workout),
-                  for (int exIdx = 0;
-                      exIdx < workout.exercises.length;
-                      exIdx++)
-                    RepaintBoundary(
+                slivers: [
+                  SliverToBoxAdapter(child: _workoutHeader(workout)),
+                  SliverReorderableList(
+                    itemCount: workout.exercises.length,
+                    itemBuilder: (ctx, exIdx) => RepaintBoundary(
+                      key: ValueKey(workout.exercises[exIdx].exerciseId),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: _exerciseWidgets(
-                            exIdx, workout.exercises[exIdx]),
+                        children: _exerciseWidgets(exIdx, workout.exercises[exIdx]),
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  _actionBtn('ADD EXERCISE', AppColors.blue, () {
-                    _keyboard.dismiss();
-                    final addedIds = workout.exercises
-                        .map((e) => e.exerciseId)
-                        .toSet();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => ExercisePickerScreen(
-                              alreadyAddedIds: addedIds)),
-                    );
-                  }),
-                  _actionBtn(
-                      workout.notes.isEmpty ? 'ADD NOTE' : 'EDIT NOTE',
-                      AppColors.blue.withValues(alpha: 0.7),
-                      () => _showWorkoutNoteDialog(workout.notes)),
-                  _actionBtn('CANCEL WORKOUT', AppColors.red, _cancel),
-                  const SizedBox(height: 32),
+                    onReorder: (oldIndex, newIndex) {
+                      _keyboard.dismiss();
+                      context.read<WorkoutProvider>().reorderExercises(oldIndex, newIndex);
+                      if (_restNotifier.value != null) _restNotifier.value = null;
+                    },
+                  ),
+                  SliverToBoxAdapter(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        _actionBtn('ADD EXERCISE', AppColors.blue, () {
+                          _keyboard.dismiss();
+                          final addedIds = workout.exercises
+                              .map((e) => e.exerciseId)
+                              .toSet();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => ExercisePickerScreen(
+                                    alreadyAddedIds: addedIds)),
+                          );
+                        }),
+                        _actionBtn(
+                            workout.notes.isEmpty ? 'ADD NOTE' : 'EDIT NOTE',
+                            AppColors.blue.withValues(alpha: 0.7),
+                            () => _showWorkoutNoteDialog(workout.notes)),
+                        _actionBtn('CANCEL WORKOUT', AppColors.red, _cancel),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -787,10 +936,18 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   List<Widget> _exerciseWidgets(int exIdx, WorkoutExercise ex) {
     final isCardio = ex.exerciseType == ExerciseType.cardio;
     return [
-      // Exercise name + menu
+      // Exercise name + drag handle + menu
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
         child: Row(children: [
+          ReorderableDragStartListener(
+            index: exIdx,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Icon(Icons.drag_handle,
+                  color: AppColors.textSecondary, size: 20),
+            ),
+          ),
           Expanded(
             child: Text(ex.exerciseName,
                 style: const TextStyle(
@@ -1082,11 +1239,15 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                         ? (set.rpe! % 1 == 0
                             ? set.rpe!.toInt().toString()
                             : set.rpe!.toString())
-                        : '—',
+                        : (set.previousRpe != null
+                            ? (set.previousRpe! % 1 == 0
+                                ? set.previousRpe!.toInt().toString()
+                                : set.previousRpe!.toString())
+                            : '—'),
                     style: TextStyle(
                       color: set.rpe != null
                           ? AppColors.blue
-                          : AppColors.textSecondary,
+                          : AppColors.textSecondary.withValues(alpha: 0.5),
                       fontSize: 12,
                       fontWeight: set.rpe != null
                           ? FontWeight.bold

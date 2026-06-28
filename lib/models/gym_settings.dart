@@ -22,8 +22,12 @@ class GymSettings {
   // Day & Time
   int dayStartHour;
   bool remindersEnabled;
+  int morningHour;
+  int morningMinute;
   int reminderHour;
   int reminderMinute;
+  int eveningHour;
+  int eveningMinute;
 
   // App behaviour
   bool soundsEnabled;
@@ -39,8 +43,12 @@ class GymSettings {
     this.githubUsername = '',
     this.dayStartHour = 4,
     this.remindersEnabled = false,
+    this.morningHour = 9,
+    this.morningMinute = 0,
     this.reminderHour = 18,
     this.reminderMinute = 0,
+    this.eveningHour = 21,
+    this.eveningMinute = 0,
     this.soundsEnabled = true,
     this.keepScreenOn = true,
   });
@@ -55,8 +63,12 @@ class GymSettings {
     String? githubUsername,
     int? dayStartHour,
     bool? remindersEnabled,
+    int? morningHour,
+    int? morningMinute,
     int? reminderHour,
     int? reminderMinute,
+    int? eveningHour,
+    int? eveningMinute,
     bool? soundsEnabled,
     bool? keepScreenOn,
   }) =>
@@ -70,8 +82,12 @@ class GymSettings {
         githubUsername: githubUsername ?? this.githubUsername,
         dayStartHour: dayStartHour ?? this.dayStartHour,
         remindersEnabled: remindersEnabled ?? this.remindersEnabled,
+        morningHour: morningHour ?? this.morningHour,
+        morningMinute: morningMinute ?? this.morningMinute,
         reminderHour: reminderHour ?? this.reminderHour,
         reminderMinute: reminderMinute ?? this.reminderMinute,
+        eveningHour: eveningHour ?? this.eveningHour,
+        eveningMinute: eveningMinute ?? this.eveningMinute,
         soundsEnabled: soundsEnabled ?? this.soundsEnabled,
         keepScreenOn: keepScreenOn ?? this.keepScreenOn,
       );
@@ -98,8 +114,12 @@ class GymSettings {
         'githubUsername': githubUsername,
         'dayStartHour': dayStartHour,
         'remindersEnabled': remindersEnabled,
+        'morningHour': morningHour,
+        'morningMinute': morningMinute,
         'reminderHour': reminderHour,
         'reminderMinute': reminderMinute,
+        'eveningHour': eveningHour,
+        'eveningMinute': eveningMinute,
         'soundsEnabled': soundsEnabled,
         'keepScreenOn': keepScreenOn,
       };
@@ -116,8 +136,12 @@ class GymSettings {
         githubUsername: j['githubUsername'] as String? ?? '',
         dayStartHour: j['dayStartHour'] as int? ?? 4,
         remindersEnabled: j['remindersEnabled'] as bool? ?? false,
+        morningHour: j['morningHour'] as int? ?? 9,
+        morningMinute: j['morningMinute'] as int? ?? 0,
         reminderHour: j['reminderHour'] as int? ?? 18,
         reminderMinute: j['reminderMinute'] as int? ?? 0,
+        eveningHour: j['eveningHour'] as int? ?? 21,
+        eveningMinute: j['eveningMinute'] as int? ?? 0,
         soundsEnabled: j['soundsEnabled'] as bool? ?? true,
         keepScreenOn: j['keepScreenOn'] as bool? ?? true,
       );

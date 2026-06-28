@@ -126,6 +126,7 @@ class WorkoutProvider extends ChangeNotifier {
 
   WorkoutSession? get activeWorkout => _activeWorkout;
   List<WorkoutSession> get history => List.unmodifiable(_history);
+
   List<Exercise> get exercises => List.unmodifiable(_exercises);
   bool get hasActiveWorkout => _activeWorkout != null;
   Map<String, PrRecord> get personalRecords => Map.unmodifiable(_prRecords);
@@ -473,6 +474,7 @@ class WorkoutProvider extends ChangeNotifier {
       setNumber: newIndex + 1,
       weightInput: last?.weightInput ?? '',
       repsInput: last?.repsInput ?? '',
+      rpe: last?.rpe,
       kmInput: last?.kmInput ?? '',
       timeInput: last?.timeInput ?? '',
     );
@@ -503,6 +505,33 @@ class WorkoutProvider extends ChangeNotifier {
       }
     }
     ex.sets.add(newSet);
+    _save();
+    notifyListeners();
+  }
+
+  /// After completing a set, carry its values forward to subsequent empty sets.
+  void carryForwardSet(int exerciseIndex, int setIndex) {
+    final ex = _activeWorkout?.exercises[exerciseIndex];
+    if (ex == null) return;
+    final done = ex.sets[setIndex];
+    for (int i = setIndex + 1; i < ex.sets.length; i++) {
+      final s = ex.sets[i];
+      if (s.completed) continue;
+      if (s.weightInput.isEmpty) s.weightInput = done.weightInput;
+      if (s.repsInput.isEmpty) s.repsInput = done.repsInput;
+      if (s.rpe == null && done.rpe != null) s.rpe = done.rpe;
+      if (s.kmInput.isEmpty) s.kmInput = done.kmInput;
+      if (s.timeInput.isEmpty) s.timeInput = done.timeInput;
+    }
+    notifyListeners();
+  }
+
+  void reorderExercises(int oldIndex, int newIndex) {
+    if (_activeWorkout == null) return;
+    if (newIndex > oldIndex) newIndex--;
+    final exercises = _activeWorkout!.exercises;
+    final item = exercises.removeAt(oldIndex);
+    exercises.insert(newIndex, item);
     _save();
     notifyListeners();
   }

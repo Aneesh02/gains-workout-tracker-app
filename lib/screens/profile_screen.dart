@@ -573,7 +573,9 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 24),
           _sectionHeader('Day & Time'),
           _dayStartsTile(context, provider),
-          _remindersTile(context, provider),
+          const SizedBox(height: 24),
+          _sectionHeader('Reminders & Notifications'),
+          _remindersSection(context, provider),
           const SizedBox(height: 24),
           _sectionHeader('App'),
           _switchTile(
@@ -825,77 +827,153 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ── Reminders ─────────────────────────────────────────────────────────────
+  // ── Reminders & Notifications ─────────────────────────────────────────────
 
-  Widget _remindersTile(BuildContext context, WorkoutProvider provider) {
+  Widget _remindersSection(BuildContext context, WorkoutProvider provider) {
     final s = provider.gymSettings;
     final enabled = s.remindersEnabled;
-    final h = s.reminderHour;
-    final m = s.reminderMinute;
-    final amPm = h < 12 ? 'AM' : 'PM';
-    final displayH = h % 12 == 0 ? 12 : h % 12;
-    final timeLabel = '$displayH:${m.toString().padLeft(2, '0')} $amPm';
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 1),
+          decoration: const BoxDecoration(color: AppColors.surface),
+          child: ListTile(
+            leading: Icon(
+              enabled
+                  ? Icons.notifications_active_outlined
+                  : Icons.notifications_none_outlined,
+              color: enabled ? AppColors.blue : AppColors.textSecondary,
+              size: 22,
+            ),
+            title: const Text('Reminders',
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+            subtitle: Text(
+              enabled ? 'Morning, midday, and evening nudges' : 'Off',
+              style:
+                  const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            trailing: Switch(
+              value: enabled,
+              activeColor: AppColors.blue,
+              onChanged: (val) async {
+                if (val) {
+                  final granted =
+                      await NotificationService.requestPermission();
+                  if (!granted) return;
+                }
+                final newSettings =
+                    provider.gymSettings.copyWith(remindersEnabled: val);
+                provider.updateGymSettings(newSettings);
+                NotificationService.reschedule(provider, newSettings);
+              },
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          ),
+        ),
+        if (enabled) ...[
+          _reminderTimeTile(
+            context,
+            provider,
+            icon: Icons.wb_sunny_outlined,
+            label: 'Morning nudge',
+            description: "What to train today",
+            hour: s.morningHour,
+            minute: s.morningMinute,
+            onPicked: (t) => provider.gymSettings
+                .copyWith(morningHour: t.hour, morningMinute: t.minute),
+          ),
+          _reminderTimeTile(
+            context,
+            provider,
+            icon: Icons.fitness_center_outlined,
+            label: 'Midday nudge',
+            description: 'Pre or post-workout check-in',
+            hour: s.reminderHour,
+            minute: s.reminderMinute,
+            onPicked: (t) => provider.gymSettings
+                .copyWith(reminderHour: t.hour, reminderMinute: t.minute),
+          ),
+          _reminderTimeTile(
+            context,
+            provider,
+            icon: Icons.nightlight_outlined,
+            label: 'Evening plan',
+            description: "Tomorrow's session recommendation",
+            hour: s.eveningHour,
+            minute: s.eveningMinute,
+            onPicked: (t) => provider.gymSettings
+                .copyWith(eveningHour: t.hour, eveningMinute: t.minute),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _reminderTimeTile(
+    BuildContext context,
+    WorkoutProvider provider, {
+    required IconData icon,
+    required String label,
+    required String description,
+    required int hour,
+    required int minute,
+    required GymSettings Function(TimeOfDay) onPicked,
+  }) {
+    final amPm = hour < 12 ? 'AM' : 'PM';
+    final displayH = hour % 12 == 0 ? 12 : hour % 12;
+    final timeLabel = '$displayH:${minute.toString().padLeft(2, '0')} $amPm';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 1),
       decoration: const BoxDecoration(color: AppColors.surface),
       child: ListTile(
-        leading: Icon(
-          enabled
-              ? Icons.notifications_active_outlined
-              : Icons.notifications_none_outlined,
-          color: enabled ? AppColors.blue : AppColors.textSecondary,
-          size: 22,
-        ),
-        title: const Text('Reminders',
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-        subtitle: Text(
-          enabled ? 'Daily nudge at $timeLabel' : 'Off',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-        ),
-        trailing: Switch(
-          value: enabled,
-          activeColor: AppColors.blue,
-          onChanged: (val) async {
-            if (val) {
-              final granted = await NotificationService.requestPermission();
-              if (!granted) return;
-            }
-            final newSettings = provider.gymSettings.copyWith(remindersEnabled: val);
+        leading: Icon(icon, color: AppColors.textSecondary, size: 22),
+        title: Text(label,
+            style:
+                const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+        subtitle: Text(description,
+            style:
+                const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        trailing: GestureDetector(
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay(hour: hour, minute: minute),
+              builder: (ctx, child) => Theme(
+                data: ThemeData.dark().copyWith(
+                  colorScheme: const ColorScheme.dark(
+                    primary: AppColors.blue,
+                    surface: AppColors.surface,
+                  ),
+                ),
+                child: child!,
+              ),
+            );
+            if (picked == null) return;
+            final newSettings = onPicked(picked);
             provider.updateGymSettings(newSettings);
             NotificationService.reschedule(provider, newSettings);
           },
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.blue.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(timeLabel,
+                style: const TextStyle(
+                    color: AppColors.blue,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+          ),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        onTap: enabled
-            ? () => _showReminderTimePicker(context, provider)
-            : null,
       ),
     );
-  }
-
-  Future<void> _showReminderTimePicker(
-      BuildContext context, WorkoutProvider provider) async {
-    final s = provider.gymSettings;
-    final initial = TimeOfDay(hour: s.reminderHour, minute: s.reminderMinute);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.blue,
-            surface: AppColors.surface,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked == null) return;
-    final newSettings = provider.gymSettings
-        .copyWith(reminderHour: picked.hour, reminderMinute: picked.minute);
-    provider.updateGymSettings(newSettings);
-    NotificationService.reschedule(provider, newSettings);
   }
 
   // ── Generic tiles ─────────────────────────────────────────────────────────
