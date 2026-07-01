@@ -80,7 +80,7 @@ class WorkoutMarkdownService {
 
     // ── YAML frontmatter ──────────────────────────────────────────────────
     buf.writeln('---');
-    buf.writeln('date: $dateStr');
+    buf.writeln('date: "[[daily/$dateStr]]"');
     buf.writeln('time_of_day: ${_timeOfDay(date)}');
     buf.writeln('type: workout');
     buf.writeln('duration_min: $durationMin');
@@ -97,7 +97,7 @@ class WorkoutMarkdownService {
       buf.writeln(exercisesFrontmatter);
     }
     buf.writeln('tags: [workout]');
-    buf.writeln('daily: "[[${dateStr}]]"');
+    buf.writeln('daily: "[[daily/${dateStr}]]"');
     buf.writeln('---');
     buf.writeln();
 
