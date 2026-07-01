@@ -660,6 +660,7 @@ class WorkoutProvider extends ChangeNotifier {
     session.notes = note;
     _save();
     notifyListeners();
+    _syncSessionBackground(session);
   }
 
   int get incompleteSetsCount {

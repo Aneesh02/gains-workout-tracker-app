@@ -85,7 +85,7 @@ class WidgetService {
     return data;
   }
 
-  // Returns up to 3 muscle groups by set count, newline-separated, abbreviated.
+  // Returns up to 7 muscle groups by set count, newline-separated, abbreviated.
   static String _topMuscles(WorkoutSession session) {
     if (session.exercises.isEmpty) return '';
     final counts = <String, int>{};
@@ -98,7 +98,7 @@ class WidgetService {
     final sorted = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     return sorted
-        .take(3)
+        .take(7)
         .map((e) => _abbreviateMuscle(e.key))
         .join('\\n'); // literal \n — Kotlin replaces it with a real newline
   }

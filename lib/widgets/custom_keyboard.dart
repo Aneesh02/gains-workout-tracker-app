@@ -12,6 +12,7 @@ class KeyboardController extends ChangeNotifier {
   String _input = '';
   double _incrementStep = 2.5;
   final List<int> _timeDigits = [];
+  bool _clearOnNextInput = false;
 
   PlateLoadingType _plateLoadingType = PlateLoadingType.none;
 
@@ -36,6 +37,7 @@ class KeyboardController extends ChangeNotifier {
     isWeightField = isWeight;
     isTimeField = timeField;
     _input = initialValue;
+    _clearOnNextInput = initialValue.isNotEmpty;
     _incrementStep = incrementStep ?? (isWeight ? 2.5 : 1.0);
     _plateLoadingType = isWeight ? plateLoadingType : PlateLoadingType.none;
     if (timeField) _initTimeDigits(initialValue);
@@ -53,11 +55,17 @@ class KeyboardController extends ChangeNotifier {
     isTimeField = false;
     _timeDigits.clear();
     _input = '';
+    _clearOnNextInput = false;
     _plateLoadingType = PlateLoadingType.none;
     notifyListeners();
   }
 
   void append(String char) {
+    if (_clearOnNextInput) {
+      _clearOnNextInput = false;
+      _input = '';
+      _timeDigits.clear();
+    }
     if (isTimeField) {
       final digit = int.tryParse(char);
       if (digit == null) return;

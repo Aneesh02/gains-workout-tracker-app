@@ -331,8 +331,9 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   void _showExerciseHistory(BuildContext context, WorkoutExercise ex) {
-    final sessions = context.read<WorkoutProvider>()
-        .getExerciseSetsHistory(ex.exerciseId, limit: 3);
+    final provider = context.read<WorkoutProvider>();
+    final sessions = provider.getExerciseSetsHistory(ex.exerciseId, limit: 3);
+    final pr = provider.personalRecords[ex.exerciseId];
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -364,6 +365,36 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               const Text('Last 3 sessions',
                   style: TextStyle(
                       color: AppColors.textSecondary, fontSize: 12)),
+              if (pr != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.emoji_events, color: Colors.amber, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      pr.isCardio
+                          ? 'PR  ${pr.km!.toStringAsFixed(1)} km'
+                          : 'PR  ${pr.weight % 1 == 0 ? pr.weight.toInt() : pr.weight} kg × ${pr.reps}',
+                      style: const TextStyle(
+                          color: Colors.amber,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${pr.date.day}/${pr.date.month}/${pr.date.year}',
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 11),
+                    ),
+                  ]),
+                ),
+              ],
               const SizedBox(height: 12),
               if (sessions.isEmpty)
                 const Padding(

@@ -8,7 +8,6 @@ class SoundService {
   static bool enabled = true;
 
   // Plays alongside whatever is playing — no ducking, no focus change.
-  // Uses media content type so it goes through the media volume, not touch sounds.
   static final _softCtx = AudioContext(
     android: AudioContextAndroid(
       isSpeakerphoneOn: false,
@@ -19,14 +18,25 @@ class SoundService {
     ),
   );
 
-  // Full media focus for workout-finish celebrations.
+  // Briefly ducks music so the bell is audible, then music resumes.
+  static final _duckCtx = AudioContext(
+    android: AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      stayAwake: false,
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.game,
+      audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+    ),
+  );
+
+  // Victory sounds play alongside music — no interruption.
   static final _finishCtx = AudioContext(
     android: AudioContextAndroid(
       isSpeakerphoneOn: false,
       stayAwake: false,
-      contentType: AndroidContentType.music,
-      usageType: AndroidUsageType.media,
-      audioFocus: AndroidAudioFocus.gain,
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.game,
+      audioFocus: AndroidAudioFocus.none,
     ),
   );
 
@@ -41,8 +51,8 @@ class SoundService {
     } catch (_) {}
   }
 
-  Future<void> setComplete() => _play('checkmark_revised.mp3');
-  Future<void> restOver()    => _play('boxing_bell.mp3');
+  Future<void> setComplete() => _play('checkmark_revised.mp3', ctx: _duckCtx);
+  Future<void> restOver()    => _play('boxing_bell.mp3',       ctx: _duckCtx);
   Future<void> workoutFinish()   => _play('finish_normal.mp3', ctx: _finishCtx);
   Future<void> workoutFinishPR() => _play('finish_pr.mp3',    ctx: _finishCtx);
   Future<void> swipeDelete() => _play('swipe_delete.mp3');

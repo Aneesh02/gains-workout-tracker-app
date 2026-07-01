@@ -15,21 +15,21 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   const WorkoutDetailScreen({super.key, required this.session});
 
-  String _shareText() {
+  String _shareText(WorkoutSession s) {
     final buf = StringBuffer();
-    buf.writeln('🏋️ ${session.name}');
-    buf.writeln(DateFormat('EEE, d MMM yyyy').format(session.startTime));
-    buf.writeln('⏱ ${session.formattedDuration} · 💪 ${session.totalVolume} kg · ✅ ${session.completedSets} sets');
-    if (session.personalRecords.isNotEmpty) {
-      buf.writeln('🏆 PRs: ${session.personalRecords.join(', ')}');
+    buf.writeln('🏋️ ${s.name}');
+    buf.writeln(DateFormat('EEE, d MMM yyyy').format(s.startTime));
+    buf.writeln('⏱ ${s.formattedDuration} · 💪 ${s.totalVolume} kg · ✅ ${s.completedSets} sets');
+    if (s.personalRecords.isNotEmpty) {
+      buf.writeln('🏆 PRs: ${s.personalRecords.join(', ')}');
     }
-    if (session.notes.isNotEmpty) {
-      buf.writeln('📝 ${session.notes}');
+    if (s.notes.isNotEmpty) {
+      buf.writeln('📝 ${s.notes}');
     }
     buf.writeln();
-    for (final ex in session.exercises) {
+    for (final ex in s.exercises) {
       buf.writeln(ex.exerciseName);
-      for (final set in ex.sets.where((s) => s.completed)) {
+      for (final set in ex.sets.where((set) => set.completed)) {
         if (set.weight != null && set.reps != null) {
           final w = set.weight! % 1 == 0
               ? set.weight!.toInt().toString()
@@ -46,12 +46,18 @@ class WorkoutDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Always look up the live session by ID so edits and note changes reflect immediately.
+    final provider = context.watch<WorkoutProvider>();
+    final current = provider.history.firstWhere(
+      (s) => s.id == session.id,
+      orElse: () => session,
+    );
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         leading: const BackButton(color: AppColors.textPrimary),
-        title: Text(session.name,
+        title: Text(current.name,
             style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
@@ -60,23 +66,19 @@ class WorkoutDetailScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit_outlined,
                 color: AppColors.textSecondary),
-            onPressed: () async {
-              final saved = await Navigator.push<bool>(
+            onPressed: () {
+              Navigator.push<bool>(
                 context,
                 MaterialPageRoute(
                     builder: (_) =>
-                        EditWorkoutScreen(session: session)),
+                        EditWorkoutScreen(session: current)),
               );
-              // Pop back to history so the updated session is visible
-              if (saved == true && context.mounted) {
-                Navigator.pop(context);
-              }
             },
           ),
           IconButton(
             icon: const Icon(Icons.share_outlined,
                 color: AppColors.textSecondary),
-            onPressed: () => Share.share(_shareText()),
+            onPressed: () => Share.share(_shareText(current)),
           ),
         ],
       ),
@@ -84,19 +86,19 @@ class WorkoutDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Header stats
-          Text(DateFormat('EEE, d MMM yyyy · h:mm a').format(session.startTime),
+          Text(DateFormat('EEE, d MMM yyyy · h:mm a').format(current.startTime),
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 16),
           Row(children: [
-            _statBox(Icons.access_time, session.formattedDuration, 'Duration'),
+            _statBox(Icons.access_time, current.formattedDuration, 'Duration'),
             const SizedBox(width: 12),
-            _statBox(Icons.fitness_center, '${session.totalVolume} kg', 'Volume'),
+            _statBox(Icons.fitness_center, '${current.totalVolume} kg', 'Volume'),
             const SizedBox(width: 12),
             _statBox(Icons.check_circle_outline,
-                '${session.completedSets}', 'Sets'),
+                '${current.completedSets}', 'Sets'),
           ]),
-          if (session.personalRecords.isNotEmpty) ...[
+          if (current.personalRecords.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -110,7 +112,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${session.personalRecords.length} Personal Record${session.personalRecords.length > 1 ? 's' : ''}: ${session.personalRecords.join(', ')}',
+                    '${current.personalRecords.length} Personal Record${current.personalRecords.length > 1 ? 's' : ''}: ${current.personalRecords.join(', ')}',
                     style: const TextStyle(
                         color: Colors.amber,
                         fontSize: 13,
@@ -121,10 +123,10 @@ class WorkoutDetailScreen extends StatelessWidget {
             ),
           ],
           // Notes section
-          if (session.notes.isNotEmpty) ...[
+          if (current.notes.isNotEmpty) ...[
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => _showNoteDialog(context),
+              onTap: () => _showNoteDialog(context, current),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -139,7 +141,7 @@ class WorkoutDetailScreen extends StatelessWidget {
                         color: AppColors.textSecondary, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(session.notes,
+                      child: Text(current.notes,
                           style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 13,
@@ -154,7 +156,7 @@ class WorkoutDetailScreen extends StatelessWidget {
           ] else ...[
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => _showNoteDialog(context),
+              onTap: () => _showNoteDialog(context, current),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -174,14 +176,14 @@ class WorkoutDetailScreen extends StatelessWidget {
           ],
           const SizedBox(height: 24),
           // Exercises
-          ...session.exercises.map((ex) => _ExerciseDetail(ex: ex)),
+          ...current.exercises.map((ex) => _ExerciseDetail(ex: ex)),
         ],
       ),
     );
   }
 
-  void _showNoteDialog(BuildContext context) {
-    final ctrl = TextEditingController(text: session.notes);
+  void _showNoteDialog(BuildContext context, WorkoutSession s) {
+    final ctrl = TextEditingController(text: s.notes);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -203,10 +205,10 @@ class WorkoutDetailScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          if (session.notes.isNotEmpty)
+          if (s.notes.isNotEmpty)
             TextButton(
                 onPressed: () {
-                  context.read<WorkoutProvider>().updateHistoryWorkoutNote(session.id, '');
+                  context.read<WorkoutProvider>().updateHistoryWorkoutNote(s.id, '');
                   Navigator.pop(ctx);
                 },
                 child: const Text('Clear',
@@ -218,7 +220,7 @@ class WorkoutDetailScreen extends StatelessWidget {
           TextButton(
               onPressed: () {
                 context.read<WorkoutProvider>()
-                    .updateHistoryWorkoutNote(session.id, ctrl.text.trim());
+                    .updateHistoryWorkoutNote(s.id, ctrl.text.trim());
                 Navigator.pop(ctx);
               },
               child: const Text('Save',

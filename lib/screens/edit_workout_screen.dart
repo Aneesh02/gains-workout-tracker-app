@@ -410,6 +410,12 @@ class _SetRow extends StatelessWidget {
         FilteringTextInputFormatter.allow(
             isDecimal ? RegExp(r'[\d.]') : RegExp(r'\d')),
       ],
+      onTap: () {
+        ctrl?.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: ctrl.text.length,
+        );
+      },
       style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
