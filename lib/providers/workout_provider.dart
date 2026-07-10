@@ -1210,10 +1210,16 @@ class WorkoutProvider extends ChangeNotifier {
   int getCurrentStreakWeeks() {
     if (_history.isEmpty) return 0;
     int streak = 0;
-    // Start from last completed week — current week is in progress, not judged yet.
-    // Streak only resets to 0 when a past week was missed.
-    DateTime weekStart =
-        _startOfWeek(DateTime.now()).subtract(const Duration(days: 7));
+    final thisWeekStart = _startOfWeek(DateTime.now());
+
+    // Count current week immediately if target is already hit
+    final thisWeekCount = _history
+        .where((s) => !s.startTime.isBefore(thisWeekStart))
+        .length;
+    if (thisWeekCount >= _weeklyTargetDays) streak++;
+
+    // Walk back through completed past weeks
+    DateTime weekStart = thisWeekStart.subtract(const Duration(days: 7));
     while (true) {
       final weekEnd = weekStart.add(const Duration(days: 7));
       final count = _history

@@ -80,7 +80,7 @@ class MetricsMarkdownService {
     buf.writeln();
     buf.writeln('| Metric | Value |');
     buf.writeln('|--------|-------|');
-    buf.writeln('| Consistency (last 12 wks) | $consistency% |');
+    buf.writeln('| Consistency (last 8 wks) | $consistency% |');
     buf.writeln('| Current streak | $streak weeks |');
     buf.writeln('| Best streak | $bestStreak weeks |');
     buf.writeln(

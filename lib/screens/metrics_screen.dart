@@ -86,7 +86,7 @@ class MetricsScreen extends StatelessWidget {
                       info: const [
                         _InfoItem(
                           metric: 'Consistency Score',
-                          what: 'The percentage of the last 12 weeks where you hit your weekly session target. It only counts weeks you actually trained enough — weeks you missed entirely don\'t count as "hits".',
+                          what: 'The percentage of the last 8 weeks where you hit your weekly session target. It only counts weeks you actually trained enough — weeks you missed entirely don\'t count as "hits".',
                           low: 'Below 50% means your training is too irregular to build momentum. Muscle and strength gains compound with consistency — sporadic training loses much of its effect.',
                           fix: 'Lower your weekly target if it\'s unrealistic. 2 solid sessions per week beats 5 sessions one week and 0 the next. Protect your non-negotiable training days.',
                         ),
@@ -113,7 +113,7 @@ class MetricsScreen extends StatelessWidget {
                         _BigScoreCard(
                           value: '$consistency%',
                           label: 'Consistency Score',
-                          subtitle: 'Target weeks hit in last 12 weeks',
+                          subtitle: 'Target weeks hit in last 8 weeks',
                           color: _consistencyColor(consistency),
                         ),
                         const SizedBox(height: 10),

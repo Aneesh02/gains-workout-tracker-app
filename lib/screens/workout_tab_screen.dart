@@ -562,7 +562,7 @@ class _ConsistencyCard extends StatelessWidget {
           const Text('consistency',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 4),
-          const Text('last 12 wks',
+          const Text('last 8 wks',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
         ],
       ),

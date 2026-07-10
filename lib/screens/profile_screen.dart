@@ -238,7 +238,7 @@ class _AllTimeStatsGrid extends StatelessWidget {
             Icons.track_changes_outlined,
             '$consistencyScore%',
             'Consistency',
-            subtitle: 'Last 18 wks'),
+            subtitle: 'Last 8 wks'),
       ],
     );
   }
