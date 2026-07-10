@@ -79,6 +79,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           HapticFeedback.heavyImpact();
           HapticFeedback.vibrate();
           SoundService().restOver();
+          NotificationService.cancelRestDone(); // handled in-app, dismiss alarm
           final workout2 = context.read<WorkoutProvider>().activeWorkout;
           if (workout2 != null && info.exIdx < workout2.exercises.length) {
             final ex2 = workout2.exercises[info.exIdx];
@@ -241,13 +242,17 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         setIdx: setIdx,
       );
       final done = ex.sets.where((s) => s.completed).length;
+      final detail = _setDetail(set);
       if (restSecs > 0) {
+        NotificationService.cancelRestDone();
         NotificationService.updateWorkoutResting(remainingSeconds: restSecs);
+        NotificationService.scheduleRestDone(restSecs);
       } else {
         NotificationService.showWorkoutNotification(
           exerciseName: ex.exerciseName,
           setsCompleted: done,
           totalSets: ex.sets.length,
+          setDetail: detail,
         );
       }
     } else {
@@ -255,6 +260,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       if (info != null && info.exIdx == exIdx && info.setIdx == setIdx) {
         _restNotified = false;
         _restNotifier.value = null;
+        NotificationService.cancelRestDone();
       }
       final done = ex.sets.where((s) => s.completed).length;
       NotificationService.showWorkoutNotification(
@@ -263,6 +269,17 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         totalSets: ex.sets.length,
       );
     }
+  }
+
+  static String? _setDetail(SetEntry set) {
+    final w = set.weightInput;
+    final r = set.repsInput;
+    if (w.isEmpty && r.isEmpty) return null;
+    final parts = <String>[];
+    if (w.isNotEmpty) parts.add('${w}kg');
+    if (r.isNotEmpty) parts.add('× $r');
+    if (set.rpe != null) parts.add('RPE ${set.rpe!.toStringAsFixed(0)}');
+    return parts.join(' ');
   }
 
   void _showExerciseMenu(BuildContext context, int exIdx, WorkoutExercise ex) {
@@ -583,15 +600,25 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   void _finish() {
     final p = context.read<WorkoutProvider>();
     final incomplete = p.incompleteSetsCount;
+    final missingRpe = p.completedSetsWithoutRpe;
+
+    final issues = <String>[];
     if (incomplete > 0) {
+      issues.add('$incomplete set${incomplete > 1 ? 's' : ''} not completed');
+    }
+    if (missingRpe > 0) {
+      issues.add('$missingRpe set${missingRpe > 1 ? 's' : ''} missing RPE');
+    }
+
+    if (issues.isNotEmpty) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text('Incomplete Sets',
+          title: const Text('Check before finishing',
               style: TextStyle(color: AppColors.textPrimary)),
           content: Text(
-              'You have $incomplete incomplete set${incomplete > 1 ? 's' : ''}. What would you like to do?',
+              issues.join('\n'),
               style: const TextStyle(color: AppColors.textSecondary)),
           actions: [
             TextButton(

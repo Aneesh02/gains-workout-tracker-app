@@ -44,6 +44,19 @@ class MainActivity : FlutterActivity() {
                         ReminderReceiver.cancel(this, id)
                         result.success(null)
                     }
+                    "scheduleRestDone" -> {
+                        try {
+                            val epochMs = (call.argument<Any>("epochMs") as? Number)?.toLong() ?: 0L
+                            RestDoneReceiver.schedule(this, epochMs)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("ALARM_ERROR", e.message, null)
+                        }
+                    }
+                    "cancelRestDone" -> {
+                        RestDoneReceiver.cancel(this)
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

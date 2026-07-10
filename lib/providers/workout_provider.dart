@@ -357,6 +357,8 @@ class WorkoutProvider extends ChangeNotifier {
             s.previousTime =
                 prev.timeInput.isNotEmpty ? prev.timeInput : null;
           }
+          // Default RPE to 7 for exercises with known history
+          if (we.exerciseType != ExerciseType.cardio) s.rpe = 7.0;
         }
         break;
       }
@@ -479,7 +481,7 @@ class WorkoutProvider extends ChangeNotifier {
       setNumber: newIndex + 1,
       weightInput: last?.weightInput ?? '',
       repsInput: last?.repsInput ?? '',
-      rpe: last?.rpe,
+      rpe: ex.exerciseType != ExerciseType.cardio ? 7.0 : null,
       kmInput: last?.kmInput ?? '',
       timeInput: last?.timeInput ?? '',
     );
@@ -524,7 +526,7 @@ class WorkoutProvider extends ChangeNotifier {
       if (s.completed) continue;
       if (s.weightInput.isEmpty) s.weightInput = done.weightInput;
       if (s.repsInput.isEmpty) s.repsInput = done.repsInput;
-      if (s.rpe == null && done.rpe != null) s.rpe = done.rpe;
+      // RPE is intentionally not carried forward — each set should be judged independently
       if (s.kmInput.isEmpty) s.kmInput = done.kmInput;
       if (s.timeInput.isEmpty) s.timeInput = done.timeInput;
     }
@@ -669,6 +671,16 @@ class WorkoutProvider extends ChangeNotifier {
         .expand((ex) => ex.sets)
         .where((s) => !s.completed)
         .length;
+  }
+
+  int get completedSetsWithoutRpe {
+    if (_activeWorkout == null) return 0;
+    int count = 0;
+    for (final ex in _activeWorkout!.exercises) {
+      if (ex.exerciseType == ExerciseType.cardio) continue;
+      count += ex.sets.where((s) => s.completed && s.rpe == null).length;
+    }
+    return count;
   }
 
   WorkoutSession? finishWorkout() {
@@ -1623,7 +1635,7 @@ class WorkoutProvider extends ChangeNotifier {
   // ── Metrics ───────────────────────────────────────────────────────────────
 
   /// Percentage of last [weeks] weeks where sessions >= weeklyTargetDays (0–100)
-  int getConsistencyScore({int weeks = 12}) {
+  int getConsistencyScore({int weeks = 8}) {
     if (_history.isEmpty) return 0;
     int success = 0;
     final now = DateTime.now();

@@ -49,11 +49,15 @@ class NotificationService {
     required String exerciseName,
     required int setsCompleted,
     required int totalSets,
+    String? setDetail,
   }) async {
+    final body = setDetail != null
+        ? '$setsCompleted / $totalSets sets · $setDetail'
+        : '$setsCompleted / $totalSets sets completed';
     await _plugin.show(
       _idWorkout,
       exerciseName,
-      '$setsCompleted / $totalSets sets completed',
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _workoutChannelId,
@@ -65,6 +69,7 @@ class NotificationService {
           autoCancel: false,
           icon: '@mipmap/ic_launcher',
           usesChronometer: false,
+          visibility: NotificationVisibility.public,
         ),
       ),
     );
@@ -93,6 +98,7 @@ class NotificationService {
           chronometerCountDown: true,
           when: remainingSeconds > 0 ? endTime : null,
           showWhen: remainingSeconds > 0,
+          visibility: NotificationVisibility.public,
         ),
       ),
     );
@@ -111,14 +117,34 @@ class NotificationService {
         android: AndroidNotificationDetails(
           _workoutChannelId,
           'Active Workout',
-          importance: Importance.low,
-          priority: Priority.low,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
           ongoing: true,
           autoCancel: false,
           icon: '@mipmap/ic_launcher',
+          visibility: NotificationVisibility.public,
         ),
       ),
     );
+  }
+
+  // ── Background rest alarm (fires even if app is backgrounded/killed) ────────
+
+  static Future<void> scheduleRestDone(int remainingSeconds) async {
+    try {
+      const ch = MethodChannel('com.gains.app/battery');
+      final epochMs = DateTime.now()
+          .add(Duration(seconds: remainingSeconds))
+          .millisecondsSinceEpoch;
+      await ch.invokeMethod('scheduleRestDone', {'epochMs': epochMs});
+    } catch (_) {}
+  }
+
+  static Future<void> cancelRestDone() async {
+    try {
+      const ch = MethodChannel('com.gains.app/battery');
+      await ch.invokeMethod('cancelRestDone');
+    } catch (_) {}
   }
 
   static Future<void> cancelWorkoutNotification() async {
@@ -176,12 +202,33 @@ class NotificationService {
         content.title, content.body);
   }
 
+  static bool _hitWeeklyTarget(WorkoutProvider p) =>
+      _sessionsNeededThisWeek(p) <= 0;
+
   static ({String title, String body}) _morningContent(WorkoutProvider p) {
     final now = DateTime.now();
     final nudges = p.getMuscleNudges();
     final streak = p.getCurrentStreakWeeks();
     final needed = _sessionsNeededThisWeek(p);
     final daysLeft = _daysLeftInWeek(p.weekStartDay);
+
+    // Weekly target already hit — show motivational recap
+    if (_hitWeeklyTarget(p)) {
+      final sessionCount = p.weeklyTargetDays + (0 - needed).abs();
+      final nextMuscle = nudges.isNotEmpty ? _capFirst(nudges.first.muscleGroup) : null;
+      if (nextMuscle != null) {
+        return (
+          title: "Weekly target done 🎯",
+          body: "$sessionCount sessions in the bag this week. "
+              "Extra session today? $nextMuscle is overdue.",
+        );
+      }
+      return (
+        title: "Weekly target done 🎯",
+        body: "You hit your goal for the week. "
+            "Rest, recover, or train for fun — you've earned it.",
+      );
+    }
 
     // Streak at risk — surface first, high urgency
     if (streak > 0 && needed > 0 && daysLeft <= 2) {
@@ -251,6 +298,31 @@ class NotificationService {
   static ({String title, String body}) _middayProteinContent(
       WorkoutProvider p, {required bool trained}) {
     final now = DateTime.now();
+
+    // Weekly target already hit — recap + next-week nudge
+    if (_hitWeeklyTarget(p)) {
+      final streak = p.getCurrentStreakWeeks();
+      final opts = [
+        (
+          title: "Week target nailed 🔥",
+          body: "You hit your sessions goal for the week. "
+              "${streak > 0 ? '$streak-week streak intact. ' : ''}"
+              "Keep the protein up — your muscles are rebuilding right now.",
+        ),
+        (
+          title: "Consistency is the cheat code",
+          body: "Another week target done. "
+              "Start thinking about next week's sessions now — "
+              "plan tonight, execute tomorrow.",
+        ),
+        (
+          title: "Goal done. Recovery mode.",
+          body: "Weekly target hit. Protein, water, and sleep are your job now. "
+              "Don't skip the recovery just because the workout is done.",
+        ),
+      ];
+      return opts[now.day % opts.length];
+    }
 
     // Trained today — recovery protein nudge
     if (trained) {
@@ -348,6 +420,24 @@ class NotificationService {
     final streak = p.getCurrentStreakWeeks();
     final nextMuscle = nudges.isNotEmpty ? _capFirst(nudges.first.muscleGroup) : null;
     final daysSince = nudges.isNotEmpty ? nudges.first.daysSince : 0;
+
+    // Weekly target hit — recap + next-week planning
+    if (_hitWeeklyTarget(p)) {
+      if (nextMuscle != null) {
+        return (
+          title: "Week done. Plan next week.",
+          body: "${streak > 0 ? '$streak-week streak secured. ' : ''}"
+              "Sleep well tonight — sleep is when the gains happen. "
+              "Tomorrow: consider $nextMuscle ($daysSince days overdue).",
+        );
+      }
+      return (
+        title: "Week complete. Recover right.",
+        body: "${streak > 0 ? '$streak-week streak locked in. ' : ''}"
+            "Protein, water, 7–8 hrs sleep. "
+            "Take 5 min now to plan next week so you start strong.",
+      );
+    }
 
     if (trained) {
       // Trained today — celebrate streak + sleep/recovery + tomorrow's target

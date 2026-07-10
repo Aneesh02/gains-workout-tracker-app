@@ -51,7 +51,7 @@ class SoundService {
     } catch (_) {}
   }
 
-  Future<void> setComplete() => _play('checkmark_revised.mp3', ctx: _duckCtx);
+  Future<void> setComplete() => _play('checkmark_revised.mp3', ctx: _softCtx);
   Future<void> restOver()    => _play('boxing_bell.mp3',       ctx: _duckCtx);
   Future<void> workoutFinish()   => _play('finish_normal.mp3', ctx: _finishCtx);
   Future<void> workoutFinishPR() => _play('finish_pr.mp3',    ctx: _finishCtx);

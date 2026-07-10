@@ -1,0 +1,105 @@
+package com.gains.app
+
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import androidx.core.app.NotificationCompat
+
+class RestDoneReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        vibrate(context)
+        showNotification(context)
+    }
+
+    private fun vibrate(context: Context) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                val v = vm.defaultVibrator
+                v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    v.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1))
+                } else {
+                    @Suppress("DEPRECATION")
+                    v.vibrate(longArrayOf(0, 400, 200, 400), -1)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun showNotification(context: Context) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "Rest Timer",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Alerts when your rest timer expires"
+                    enableVibration(false) // we vibrate manually above
+                }
+            )
+        }
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val tapPi = PendingIntent.getActivity(
+            context, 0, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Rest done — start your set!")
+            .setContentText("Tap to return to your workout")
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(tapPi)
+            .build()
+
+        nm.notify(NOTIFICATION_ID, notification)
+    }
+
+    companion object {
+        const val CHANNEL_ID = "gains_rest_done"
+        const val NOTIFICATION_ID = 4
+
+        fun schedule(context: Context, epochMs: Long) {
+            val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pi = buildPendingIntent(context)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, epochMs, pi)
+            } else {
+                am.setExact(AlarmManager.RTC_WAKEUP, epochMs, pi)
+            }
+        }
+
+        fun cancel(context: Context) {
+            val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            am.cancel(buildPendingIntent(context))
+        }
+
+        private fun buildPendingIntent(context: Context): PendingIntent {
+            val intent = Intent(context, RestDoneReceiver::class.java)
+            return PendingIntent.getBroadcast(
+                context, 100, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+    }
+}

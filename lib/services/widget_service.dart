@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 import '../models/workout_session.dart';
 import '../providers/workout_provider.dart';
@@ -16,20 +17,18 @@ class WidgetService {
       final weeklyCount = _sessionsThisWeek(provider);
       final weeklyTarget = provider.weeklyTargetDays;
       final volumeKg = _volumeThisWeek(provider);
-      final volumeStr = volumeKg > 0
-          ? '${_formatNum(volumeKg)} kg'
-          : '—';
+      final volumeStr = volumeKg > 0 ? '${_formatNum(volumeKg)} kg' : '—';
 
       await HomeWidget.saveWidgetData('gains.streak', streak);
       await HomeWidget.saveWidgetData('gains.weeklyCount', weeklyCount);
       await HomeWidget.saveWidgetData('gains.weeklyTarget', weeklyTarget);
       await HomeWidget.saveWidgetData('gains.weeklyVolume', volumeStr);
 
-      // Per-day grid data (Monday=0 … Sunday=6)
-      final dayData = _getDayData(provider);
-      for (int i = 0; i < 7; i++) {
-        await HomeWidget.saveWidgetData('gains.day$i', dayData[i]);
-      }
+      // Store session dates as JSON so Kotlin can compute the day grid dynamically.
+      // Format: {"2026-07-09":"Chest\nBack|45m","2026-07-08":"Legs|60m"}
+      // Kotlin reads this at draw time, computes which day is "today", and sets states.
+      final sessionJson = _buildSessionJson(provider);
+      await HomeWidget.saveWidgetData('gains.sessionJson', sessionJson);
 
       await HomeWidget.updateWidget(
         androidName: _androidName,
@@ -42,47 +41,20 @@ class WidgetService {
     } catch (_) {}
   }
 
-  // Returns 7 strings indexed Monday=0 … Sunday=6.
-  // Format: "<state>|<detail>"
-  //   state 1 = trained (orange)
-  //   state 2 = today, not yet trained (blue)
-  //   state 0 = past rest day (gray)
-  //   state 3 = future (dim)
-  static List<String> _getDayData(WorkoutProvider provider) {
+  static String _buildSessionJson(WorkoutProvider provider) {
     final now = DateTime.now();
-    final todayDate = DateTime(now.year, now.month, now.day);
-    // weekday: Mon=1 … Sun=7, map to Mon=0 … Sun=6
-    final todayIdx = now.weekday - 1;
-    final weekMonday = todayDate.subtract(Duration(days: todayIdx));
-
-    final data = List<String>.filled(7, '3||');
-
-    for (int i = 0; i < 7; i++) {
-      final day = weekMonday.add(Duration(days: i));
-
-      if (day.isAfter(todayDate)) {
-        data[i] = '3|'; // future
-        continue;
-      }
-
-      // Find sessions on this calendar day
-      final sessions = provider.history.where((s) {
-        final d = DateTime(s.startTime.year, s.startTime.month, s.startTime.day);
-        return d == day;
-      }).toList();
-
-      if (sessions.isNotEmpty) {
-        final muscles = _topMuscles(sessions.first);   // newline-separated, up to 3
-        final dur = _durationStr(sessions.first);
-        data[i] = '1|$muscles|$dur';
-      } else if (day == todayDate) {
-        data[i] = '2||'; // today, not trained yet
-      } else {
-        data[i] = '0||'; // past rest day
+    final cutoff = now.subtract(const Duration(days: 30));
+    final map = <String, String>{};
+    for (final s in provider.history) {
+      if (s.startTime.isBefore(cutoff)) continue;
+      final key = '${s.startTime.year}-'
+          '${s.startTime.month.toString().padLeft(2, '0')}-'
+          '${s.startTime.day.toString().padLeft(2, '0')}';
+      if (!map.containsKey(key)) {
+        map[key] = '${_topMuscles(s)}|${_durationStr(s)}';
       }
     }
-
-    return data;
+    return jsonEncode(map);
   }
 
   // Returns up to 7 muscle groups by set count, newline-separated, abbreviated.
