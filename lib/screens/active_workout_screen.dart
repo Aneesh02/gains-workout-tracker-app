@@ -63,11 +63,21 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     if (workout != null && workout.exercises.isNotEmpty) {
       final ex = workout.exercises.first;
       final done = ex.sets.where((s) => s.completed).length;
-      NotificationService.showWorkoutNotification(
-        exerciseName: ex.exerciseName,
-        setsCompleted: done,
-        totalSets: ex.sets.length,
-      );
+      final firstPending = ex.sets.indexWhere((s) => !s.completed);
+      if (firstPending != -1) {
+        NotificationService.showNextSetDue(
+          exerciseName: ex.exerciseName,
+          setsCompleted: done,
+          totalSets: ex.sets.length,
+          nextSetDetail: _nextSetPreview(ex.sets[firstPending], firstPending + 1),
+        );
+      } else {
+        NotificationService.showWorkoutNotification(
+          exerciseName: ex.exerciseName,
+          setsCompleted: done,
+          totalSets: ex.sets.length,
+        );
+      }
     }
     // Timer only touches ValueNotifier — no setState, no full rebuilds.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -130,7 +140,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     final nextDetail = done < ex.sets.length
         ? _nextSetPreview(ex.sets[done], done + 1)
         : null;
-    NotificationService.updateWorkoutRestDone(
+    // User ended rest early — no overtime, so use showNextSetDue (no chronometer).
+    NotificationService.showNextSetDue(
       exerciseName: ex.exerciseName,
       setsCompleted: done,
       totalSets: ex.sets.length,
@@ -139,17 +150,32 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   void _completeNextSetFromNotification() {
-    final info = _restNotifier.value;
-    if (info == null) return;
     final p = context.read<WorkoutProvider>();
     final workout = p.activeWorkout;
-    if (workout == null || info.exIdx >= workout.exercises.length) return;
-    final ex = workout.exercises[info.exIdx];
-    // Find the next incomplete set after the one that started this rest.
-    var nextIdx = ex.sets.indexWhere((s) => !s.completed, info.setIdx + 1);
-    if (nextIdx == -1) nextIdx = ex.sets.indexWhere((s) => !s.completed);
-    if (nextIdx == -1) return;
-    _toggleComplete(info.exIdx, nextIdx);
+    if (workout == null) return;
+
+    final info = _restNotifier.value;
+    if (info != null && info.exIdx < workout.exercises.length) {
+      // Coming from rest state — find next incomplete set after the rested one.
+      final ex = workout.exercises[info.exIdx];
+      var nextIdx = ex.sets.indexWhere((s) => !s.completed, info.setIdx + 1);
+      if (nextIdx == -1) nextIdx = ex.sets.indexWhere((s) => !s.completed);
+      if (nextIdx != -1) {
+        _toggleComplete(info.exIdx, nextIdx);
+        return;
+      }
+    }
+
+    // No rest info (e.g. after End Rest or no-rest exercise) —
+    // find the very first incomplete set across all exercises in order.
+    for (int exIdx = 0; exIdx < workout.exercises.length; exIdx++) {
+      final ex = workout.exercises[exIdx];
+      final setIdx = ex.sets.indexWhere((s) => !s.completed);
+      if (setIdx != -1) {
+        _toggleComplete(exIdx, setIdx);
+        return;
+      }
+    }
   }
 
   static String? _nextSetPreview(SetEntry set, int setNumber) {
@@ -315,12 +341,23 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
             remainingSeconds: restSecs, exerciseName: ex.exerciseName);
         NotificationService.scheduleRestDone(restSecs);
       } else {
-        NotificationService.showWorkoutNotification(
-          exerciseName: ex.exerciseName,
-          setsCompleted: done,
-          totalSets: ex.sets.length,
-          setDetail: detail,
-        );
+        // No rest timer — show the next pending set immediately with Complete Set action.
+        final nextPending = ex.sets.indexWhere((s) => !s.completed, setIdx + 1);
+        if (nextPending != -1) {
+          NotificationService.showNextSetDue(
+            exerciseName: ex.exerciseName,
+            setsCompleted: done,
+            totalSets: ex.sets.length,
+            nextSetDetail: _nextSetPreview(ex.sets[nextPending], nextPending + 1),
+          );
+        } else {
+          NotificationService.showWorkoutNotification(
+            exerciseName: ex.exerciseName,
+            setsCompleted: done,
+            totalSets: ex.sets.length,
+            setDetail: detail,
+          );
+        }
       }
     } else {
       final info = _restNotifier.value;
@@ -330,11 +367,22 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         NotificationService.cancelRestDone();
       }
       final done = ex.sets.where((s) => s.completed).length;
-      NotificationService.showWorkoutNotification(
-        exerciseName: ex.exerciseName,
-        setsCompleted: done,
-        totalSets: ex.sets.length,
-      );
+      // Set was un-ticked — show next incomplete set with Complete Set action.
+      final nextPending = ex.sets.indexWhere((s) => !s.completed);
+      if (nextPending != -1) {
+        NotificationService.showNextSetDue(
+          exerciseName: ex.exerciseName,
+          setsCompleted: done,
+          totalSets: ex.sets.length,
+          nextSetDetail: _nextSetPreview(ex.sets[nextPending], nextPending + 1),
+        );
+      } else {
+        NotificationService.showWorkoutNotification(
+          exerciseName: ex.exerciseName,
+          setsCompleted: done,
+          totalSets: ex.sets.length,
+        );
+      }
     }
   }
 

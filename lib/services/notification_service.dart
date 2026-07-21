@@ -129,7 +129,7 @@ class NotificationService {
             AndroidNotificationAction(
               _actionEndRest,
               'End Rest',
-              showsUserInterface: true,
+              showsUserInterface: false,
               cancelNotification: false,
             ),
           ],
@@ -168,7 +168,44 @@ class NotificationService {
             AndroidNotificationAction(
               _actionCompleteSet,
               'Complete Set',
-              showsUserInterface: true,
+              showsUserInterface: false,
+              cancelNotification: false,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Shows the upcoming set with a "Complete Set" action — no chronometer.
+  // Used when rest ends early (End Rest tapped), rest = 0, or workout first opens.
+  static Future<void> showNextSetDue({
+    required String exerciseName,
+    required int setsCompleted,
+    required int totalSets,
+    String? nextSetDetail,
+  }) async {
+    final body = nextSetDetail ?? 'Set ${setsCompleted + 1} / $totalSets';
+    await _plugin.show(
+      _idWorkout,
+      exerciseName,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _workoutChannelId,
+          'Active Workout',
+          importance: Importance.low,
+          priority: Priority.low,
+          ongoing: true,
+          autoCancel: false,
+          icon: '@mipmap/ic_launcher',
+          visibility: NotificationVisibility.public,
+          showWhen: false,
+          actions: const [
+            AndroidNotificationAction(
+              _actionCompleteSet,
+              'Complete Set',
+              showsUserInterface: false,
               cancelNotification: false,
             ),
           ],

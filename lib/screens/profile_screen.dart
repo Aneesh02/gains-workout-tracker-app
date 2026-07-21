@@ -296,7 +296,7 @@ class _WorkoutsPerWeekChart extends StatefulWidget {
 }
 
 class _WorkoutsPerWeekChartState extends State<_WorkoutsPerWeekChart> {
-  static const _defaultWeeks = 18;
+  static const _defaultWeeks = 12;
   static const double _sq = 14;
   static const double _gap = 3;
   static const int _days = 7;
@@ -357,17 +357,15 @@ class _WorkoutsPerWeekChartState extends State<_WorkoutsPerWeekChart> {
 
   void _toggleShowAll() {
     setState(() => _showAll = !_showAll);
-    if (!_showAll) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final weeks = _showAll
+    // Newest week first (leftmost); default shows last 12, "show all" shows everything.
+    final visible = _showAll
         ? _allWeeks
         : _allWeeks.sublist(max(0, _allWeeks.length - _defaultWeeks));
+    final weeks = visible.reversed.toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -512,7 +510,7 @@ class _WorkoutsPerWeekChartState extends State<_WorkoutsPerWeekChart> {
               onTap: _toggleShowAll,
               child: Text(
                 _showAll
-                    ? 'Show last 18 weeks'
+                    ? 'Show last 12 weeks'
                     : 'Show all history (${_allWeeks.length} weeks)',
                 style: const TextStyle(
                     color: AppColors.blue,
