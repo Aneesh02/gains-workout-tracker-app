@@ -627,11 +627,24 @@ class _MuscleBreakdownCard extends StatelessWidget {
 
   const _MuscleBreakdownCard({required this.weeklySets});
 
+  static const _groups = [
+    'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Full Body', 'Cardio',
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final sorted = weeklySets.entries.toList()
+    // Always show all groups; trained ones sorted by count at top, zeros below.
+    final trained = _groups
+        .where((g) => (weeklySets[g] ?? 0) > 0)
+        .map((g) => MapEntry(g, weeklySets[g]!))
+        .toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final maxSets = sorted.isEmpty ? 1 : sorted.first.value;
+    final untrained = _groups
+        .where((g) => (weeklySets[g] ?? 0) == 0)
+        .map((g) => MapEntry(g, 0))
+        .toList();
+    final sorted = [...trained, ...untrained];
+    final maxSets = trained.isEmpty ? 1 : trained.first.value;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -648,12 +661,7 @@ class _MuscleBreakdownCard extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
-          if (sorted.isEmpty)
-            const Text('No workouts this week',
-                style: TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12))
-          else
-            ...sorted.map((e) => Padding(
+          ...sorted.map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
@@ -679,10 +687,14 @@ class _MuscleBreakdownCard extends StatelessWidget {
                         width: 28,
                         child: Text('${e.value}',
                             textAlign: TextAlign.right,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
+                            style: TextStyle(
+                                color: e.value > 0
+                                    ? AppColors.textPrimary
+                                    : AppColors.textSecondary,
                                 fontSize: 12,
-                                fontWeight: FontWeight.w600)),
+                                fontWeight: e.value > 0
+                                    ? FontWeight.w600
+                                    : FontWeight.normal)),
                       ),
                     ],
                   ),

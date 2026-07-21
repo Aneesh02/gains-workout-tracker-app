@@ -57,6 +57,10 @@ class MainActivity : FlutterActivity() {
                         RestDoneReceiver.cancel(this)
                         result.success(null)
                     }
+                    "playBell" -> {
+                        RestDoneReceiver.playBell(this)
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

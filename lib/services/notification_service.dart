@@ -1,3 +1,5 @@
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -11,10 +13,16 @@ import '../models/gym_settings.dart';
 /// Slot A (ID 0): Morning (default 9:00 AM) — what to train today.
 /// Slot B (ID 1): Midday (user-configured) — pre-workout nudge OR post-workout celebration.
 /// Slot C (ID 2): Evening (default 9:00 PM) — tomorrow's plan OR recovery if trained today.
-// Top-level handler for notification actions when app is backgrounded/killed.
+
+// Called when notification action fires while the app is backgrounded/killed.
+// Runs in a SEPARATE isolate — can't call main-isolate callbacks directly.
+// Sends the action ID through an IsolateNameServer port to the main isolate.
 @pragma('vm:entry-point')
 void _bgNotifResponse(NotificationResponse response) {
-  // showsUserInterface:true on the action relaunches the app; handled there.
+  final port = IsolateNameServer.lookupPortByName('gains_notif_port');
+  if (port != null && response.actionId != null) {
+    port.send(response.actionId!);
+  }
 }
 
 class NotificationService {
@@ -28,11 +36,14 @@ class NotificationService {
   static const _workoutChannelId = 'gains_workout';
   static const _actionCompleteSet = 'complete_set';
   static const _actionEndRest = 'end_rest';
+  static const _portName = 'gains_notif_port';
+  static ReceivePort? _port;
 
   // Registered by ActiveWorkoutScreen.
   static VoidCallback? onCompleteSet;
   static VoidCallback? onEndRest;
 
+  // Called when action fires while app is in foreground.
   static void _onNotifResponse(NotificationResponse response) {
     if (response.actionId == _actionCompleteSet) {
       onCompleteSet?.call();
@@ -41,7 +52,21 @@ class NotificationService {
     }
   }
 
+  // Opens a ReceivePort on the main isolate so _bgNotifResponse (background
+  // isolate) can forward action IDs back here to invoke the callbacks.
+  static void _setupPort() {
+    _port?.close();
+    IsolateNameServer.removePortNameMapping(_portName);
+    _port = ReceivePort();
+    IsolateNameServer.registerPortWithName(_port!.sendPort, _portName);
+    _port!.listen((message) {
+      if (message == _actionCompleteSet) onCompleteSet?.call();
+      if (message == _actionEndRest) onEndRest?.call();
+    });
+  }
+
   static Future<void> init() async {
+    _setupPort();
     tz.initializeTimeZones();
     final timezoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timezoneName));
@@ -235,6 +260,15 @@ class NotificationService {
 
   static Future<void> cancelWorkoutNotification() async {
     await _plugin.cancel(_idWorkout);
+  }
+
+  // Plays the rest bell via native MediaPlayer with audio-focus ducking.
+  // Works whether the app is foregrounded, backgrounded, or killed.
+  static Future<void> playBell() async {
+    try {
+      const ch = MethodChannel('com.gains.app/battery');
+      await ch.invokeMethod('playBell');
+    } catch (_) {}
   }
 
   static Future<bool> requestPermission() async {

@@ -90,7 +90,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           _restNotified = true;
           HapticFeedback.heavyImpact();
           HapticFeedback.vibrate();
-          SoundService().restOver();
+          NotificationService.playBell(); // native MediaPlayer with audio-focus ducking
           NotificationService.cancelRestDone(); // handled in-app, dismiss alarm
           final workout2 = context.read<WorkoutProvider>().activeWorkout;
           if (workout2 != null && info.exIdx < workout2.exercises.length) {
