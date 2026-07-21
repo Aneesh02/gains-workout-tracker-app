@@ -1,5 +1,3 @@
-import 'dart:isolate';
-import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -14,19 +12,13 @@ import '../models/gym_settings.dart';
 /// Slot B (ID 1): Midday (user-configured) — pre-workout nudge OR post-workout celebration.
 /// Slot C (ID 2): Evening (default 9:00 PM) — tomorrow's plan OR recovery if trained today.
 
-// Called when notification action fires while the app is backgrounded/killed.
-// Runs in a SEPARATE isolate — can't call main-isolate callbacks directly.
-// Sends the action ID through an IsolateNameServer port to the main isolate.
+// Unused — workout notification actions are routed via NotificationActionReceiver (native).
 @pragma('vm:entry-point')
-void _bgNotifResponse(NotificationResponse response) {
-  final port = IsolateNameServer.lookupPortByName('gains_notif_port');
-  if (port != null && response.actionId != null) {
-    port.send(response.actionId!);
-  }
-}
+void _bgNotifResponse(NotificationResponse response) {}
 
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
+  static const _ch = MethodChannel('com.gains.app/battery');
   static const _channelId = 'gains_reminders';
 
   static const _idMorning = 0;
@@ -34,39 +26,24 @@ class NotificationService {
   static const _idEvening = 2;
   static const _idWorkout = 3;
   static const _workoutChannelId = 'gains_workout';
-  static const _actionCompleteSet = 'complete_set';
-  static const _actionEndRest = 'end_rest';
-  static const _portName = 'gains_notif_port';
-  static ReceivePort? _port;
 
   // Registered by ActiveWorkoutScreen.
   static VoidCallback? onCompleteSet;
   static VoidCallback? onEndRest;
 
-  // Called when action fires while app is in foreground.
-  static void _onNotifResponse(NotificationResponse response) {
-    if (response.actionId == _actionCompleteSet) {
-      onCompleteSet?.call();
-    } else if (response.actionId == _actionEndRest) {
-      onEndRest?.call();
-    }
-  }
-
-  // Opens a ReceivePort on the main isolate so _bgNotifResponse (background
-  // isolate) can forward action IDs back here to invoke the callbacks.
-  static void _setupPort() {
-    _port?.close();
-    IsolateNameServer.removePortNameMapping(_portName);
-    _port = ReceivePort();
-    IsolateNameServer.registerPortWithName(_port!.sendPort, _portName);
-    _port!.listen((message) {
-      if (message == _actionCompleteSet) onCompleteSet?.call();
-      if (message == _actionEndRest) onEndRest?.call();
-    });
-  }
+  // No-op — workout actions are now handled by NotificationActionReceiver (native).
+  static void _onNotifResponse(NotificationResponse response) {}
 
   static Future<void> init() async {
-    _setupPort();
+    // Handle action callbacks forwarded from NotificationActionReceiver (native).
+    _ch.setMethodCallHandler((call) async {
+      if (call.method == 'notificationAction') {
+        final id = call.arguments as String?;
+        if (id == 'complete_set') onCompleteSet?.call();
+        if (id == 'end_rest') onEndRest?.call();
+      }
+      return null;
+    });
     tz.initializeTimeZones();
     final timezoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timezoneName));
@@ -124,86 +101,42 @@ class NotificationService {
     );
   }
 
+  // Countdown timer + "End Rest" action — built natively so the action routes
+  // through NotificationActionReceiver → Flutter engine MethodChannel.
   static Future<void> updateWorkoutResting({
     required int remainingSeconds,
     String exerciseName = '',
   }) async {
-    final endTime = DateTime.now()
+    final endMs = DateTime.now()
         .add(Duration(seconds: remainingSeconds))
         .millisecondsSinceEpoch;
-    final title = exerciseName.isNotEmpty ? 'Resting · $exerciseName' : 'Resting';
-    await _plugin.show(
-      _idWorkout,
-      title,
-      'Rest timer running',
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _workoutChannelId,
-          'Active Workout',
-          importance: Importance.low,
-          priority: Priority.low,
-          ongoing: true,
-          autoCancel: false,
-          icon: '@mipmap/ic_launcher',
-          usesChronometer: true,
-          chronometerCountDown: true,
-          when: endTime,
-          showWhen: true,
-          visibility: NotificationVisibility.public,
-          actions: const [
-            AndroidNotificationAction(
-              _actionEndRest,
-              'End Rest',
-              showsUserInterface: false,
-              cancelNotification: false,
-            ),
-          ],
-        ),
-      ),
-    );
+    try {
+      await _ch.invokeMethod('showWorkoutResting', {
+        'exerciseName': exerciseName,
+        'endTimeMs': endMs,
+      });
+    } catch (_) {}
   }
 
+  // Count-up overtime timer + "Complete Set" action.
   static Future<void> updateWorkoutRestDone({
     required String exerciseName,
     required int setsCompleted,
     required int totalSets,
     String? nextSetDetail,
   }) async {
-    final restEndedAt = DateTime.now().millisecondsSinceEpoch;
     final body = nextSetDetail ?? 'Set ${setsCompleted + 1} / $totalSets';
-    await _plugin.show(
-      _idWorkout,
-      exerciseName,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _workoutChannelId,
-          'Active Workout',
-          importance: Importance.low,
-          priority: Priority.low,
-          ongoing: true,
-          autoCancel: false,
-          icon: '@mipmap/ic_launcher',
-          visibility: NotificationVisibility.public,
-          usesChronometer: true,
-          chronometerCountDown: false,
-          when: restEndedAt,
-          showWhen: true,
-          actions: const [
-            AndroidNotificationAction(
-              _actionCompleteSet,
-              'Complete Set',
-              showsUserInterface: false,
-              cancelNotification: false,
-            ),
-          ],
-        ),
-      ),
-    );
+    final whenMs = DateTime.now().millisecondsSinceEpoch;
+    try {
+      await _ch.invokeMethod('showWorkoutRestDone', {
+        'exerciseName': exerciseName,
+        'body': body,
+        'whenMs': whenMs,
+      });
+    } catch (_) {}
   }
 
-  // Shows the upcoming set with a "Complete Set" action — no chronometer.
-  // Used when rest ends early (End Rest tapped), rest = 0, or workout first opens.
+  // Static next-set card + "Complete Set" action — no chronometer.
   static Future<void> showNextSetDue({
     required String exerciseName,
     required int setsCompleted,
@@ -211,50 +144,28 @@ class NotificationService {
     String? nextSetDetail,
   }) async {
     final body = nextSetDetail ?? 'Set ${setsCompleted + 1} / $totalSets';
-    await _plugin.show(
-      _idWorkout,
-      exerciseName,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _workoutChannelId,
-          'Active Workout',
-          importance: Importance.low,
-          priority: Priority.low,
-          ongoing: true,
-          autoCancel: false,
-          icon: '@mipmap/ic_launcher',
-          visibility: NotificationVisibility.public,
-          showWhen: false,
-          actions: const [
-            AndroidNotificationAction(
-              _actionCompleteSet,
-              'Complete Set',
-              showsUserInterface: false,
-              cancelNotification: false,
-            ),
-          ],
-        ),
-      ),
-    );
+    try {
+      await _ch.invokeMethod('showWorkoutNextSet', {
+        'exerciseName': exerciseName,
+        'body': body,
+      });
+    } catch (_) {}
   }
 
   // ── Background rest alarm (fires even if app is backgrounded/killed) ────────
 
   static Future<void> scheduleRestDone(int remainingSeconds) async {
     try {
-      const ch = MethodChannel('com.gains.app/battery');
       final epochMs = DateTime.now()
           .add(Duration(seconds: remainingSeconds))
           .millisecondsSinceEpoch;
-      await ch.invokeMethod('scheduleRestDone', {'epochMs': epochMs});
+      await _ch.invokeMethod('scheduleRestDone', {'epochMs': epochMs});
     } catch (_) {}
   }
 
   static Future<void> cancelRestDone() async {
     try {
-      const ch = MethodChannel('com.gains.app/battery');
-      await ch.invokeMethod('cancelRestDone');
+      await _ch.invokeMethod('cancelRestDone');
     } catch (_) {}
   }
 
@@ -262,12 +173,11 @@ class NotificationService {
     await _plugin.cancel(_idWorkout);
   }
 
-  // Plays the rest bell via native MediaPlayer with audio-focus ducking.
-  // Works whether the app is foregrounded, backgrounded, or killed.
+  // Plays the rest bell via native MediaPlayer (USAGE_ALARM + duck focus).
+  // Works foregrounded, backgrounded, and when called from RestDoneReceiver.
   static Future<void> playBell() async {
     try {
-      const ch = MethodChannel('com.gains.app/battery');
-      await ch.invokeMethod('playBell');
+      await _ch.invokeMethod('playBell');
     } catch (_) {}
   }
 
@@ -280,8 +190,7 @@ class NotificationService {
     // Ask to be excluded from battery optimization so scheduled alarms fire
     // reliably on Samsung and other aggressive OEMs.
     try {
-      const channel = MethodChannel('com.gains.app/battery');
-      await channel.invokeMethod('requestIgnoreBatteryOptimization');
+      await _ch.invokeMethod('requestIgnoreBatteryOptimization');
     } catch (_) {}
     return granted;
   }
@@ -307,9 +216,8 @@ class NotificationService {
   }
 
   static Future<void> cancelReminders() async {
-    const ch = MethodChannel('com.gains.app/battery');
     for (final id in [_idMorning, _idPrimary, _idEvening]) {
-      try { await ch.invokeMethod('cancelReminder', {'id': id}); } catch (_) {}
+      try { await _ch.invokeMethod('cancelReminder', {'id': id}); } catch (_) {}
     }
   }
 
@@ -707,8 +615,7 @@ class NotificationService {
   static Future<String?> _schedule(
       int id, int hour, int minute, String title, String body) async {
     try {
-      const ch = MethodChannel('com.gains.app/battery');
-      await ch.invokeMethod('scheduleReminder', {
+      await _ch.invokeMethod('scheduleReminder', {
         'id': id,
         'epochMs': _nextEpochMs(hour, minute),
         'title': title,

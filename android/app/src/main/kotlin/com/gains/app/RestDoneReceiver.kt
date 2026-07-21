@@ -80,9 +80,11 @@ class RestDoneReceiver : BroadcastReceiver() {
         fun playBell(context: Context) {
             try {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                // USAGE_ALARM plays through the alarm stream — never silenced by ringer/DND.
+                // AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK asks music apps to lower their volume.
                 val audioAttrs = AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .build()
 
                 var focusRequest: AudioFocusRequest? = null
@@ -93,7 +95,7 @@ class RestDoneReceiver : BroadcastReceiver() {
                     am.requestAudioFocus(focusRequest)
                 } else {
                     @Suppress("DEPRECATION")
-                    am.requestAudioFocus(null, AudioManager.STREAM_NOTIFICATION, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    am.requestAudioFocus(null, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                 }
 
                 val afd = context.assets.openFd("flutter_assets/sounds/boxing_bell.mp3")

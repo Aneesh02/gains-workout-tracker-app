@@ -77,6 +77,7 @@
 
         <receiver android:exported="false" android:name=".ReminderReceiver"/>
         <receiver android:exported="false" android:name=".RestDoneReceiver"/>
+        <receiver android:exported="false" android:name=".NotificationActionReceiver"/>
         <receiver android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
         <receiver android:exported="false"

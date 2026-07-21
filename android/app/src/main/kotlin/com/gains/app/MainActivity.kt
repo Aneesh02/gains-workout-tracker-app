@@ -7,11 +7,14 @@ import android.os.Build
 import android.os.PowerManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Cache so NotificationActionReceiver can reach the running engine.
+        FlutterEngineCache.getInstance().put("main_engine", flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.gains.app/battery")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -59,6 +62,26 @@ class MainActivity : FlutterActivity() {
                     }
                     "playBell" -> {
                         RestDoneReceiver.playBell(this)
+                        result.success(null)
+                    }
+                    "showWorkoutResting" -> {
+                        val name = call.argument<String>("exerciseName") ?: ""
+                        val endMs = (call.argument<Any>("endTimeMs") as? Number)?.toLong() ?: 0L
+                        WorkoutNotifier.showResting(this, name, endMs)
+                        result.success(null)
+                    }
+                    "showWorkoutNextSet" -> {
+                        val name = call.argument<String>("exerciseName") ?: ""
+                        val body = call.argument<String>("body") ?: ""
+                        WorkoutNotifier.showNextSet(this, name, body)
+                        result.success(null)
+                    }
+                    "showWorkoutRestDone" -> {
+                        val name = call.argument<String>("exerciseName") ?: ""
+                        val body = call.argument<String>("body") ?: ""
+                        val whenMs = (call.argument<Any>("whenMs") as? Number)?.toLong()
+                            ?: System.currentTimeMillis()
+                        WorkoutNotifier.showRestDone(this, name, body, whenMs)
                         result.success(null)
                     }
                     else -> result.notImplemented()

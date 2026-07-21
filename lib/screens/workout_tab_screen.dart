@@ -355,18 +355,20 @@ class _DashboardSection extends StatelessWidget {
             )),
         if (milestones.isNotEmpty) const SizedBox(height: 12),
 
-        // Streak + Consistency row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _StreakCard(streak: streak, bestStreak: bestStreak),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ConsistencyCard(score: consistency),
-            ),
-          ],
+        // Streak + Consistency row — stretch so both cards share the tallest height
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StreakCard(streak: streak, bestStreak: bestStreak),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ConsistencyCard(score: consistency),
+              ),
+            ],
+          ),
         ),
 
         // Nudge card (below, full width)
