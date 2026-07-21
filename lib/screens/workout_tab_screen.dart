@@ -642,14 +642,14 @@ class _MuscleBreakdownCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Last 7 days',
+          const Text('This week',
               style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           if (sorted.isEmpty)
-            const Text('No workouts in the last 7 days',
+            const Text('No workouts this week',
                 style: TextStyle(
                     color: AppColors.textSecondary, fontSize: 12))
           else

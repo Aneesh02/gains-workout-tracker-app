@@ -54,6 +54,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationService.onCompleteSet = _completeNextSetFromNotification;
+    NotificationService.onEndRest = _endRestFromNotification;
     final p = context.read<WorkoutProvider>();
     final keepOn = p.gymSettings.keepScreenOn;
     if (keepOn) WakelockPlus.enable();
@@ -84,10 +86,14 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           if (workout2 != null && info.exIdx < workout2.exercises.length) {
             final ex2 = workout2.exercises[info.exIdx];
             final done2 = ex2.sets.where((s) => s.completed).length;
+            final nextDetail = done2 < ex2.sets.length
+                ? _nextSetPreview(ex2.sets[done2], done2 + 1)
+                : null;
             NotificationService.updateWorkoutRestDone(
               exerciseName: ex2.exerciseName,
               setsCompleted: done2,
               totalSets: ex2.sets.length,
+              nextSetDetail: nextDetail,
             );
           }
         }
@@ -100,6 +106,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
 
   @override
   void dispose() {
+    NotificationService.onCompleteSet = null;
+    NotificationService.onEndRest = null;
     _timer.cancel();
     _restNotifier.dispose();
     _scroll.dispose();
@@ -107,6 +115,62 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     WakelockPlus.disable();
     super.dispose();
   }
+
+  void _endRestFromNotification() {
+    final info = _restNotifier.value;
+    if (info == null) return;
+    _restNotified = true;
+    _restNotifier.value = null;
+    NotificationService.cancelRestDone();
+    final p = context.read<WorkoutProvider>();
+    final workout = p.activeWorkout;
+    if (workout == null || info.exIdx >= workout.exercises.length) return;
+    final ex = workout.exercises[info.exIdx];
+    final done = ex.sets.where((s) => s.completed).length;
+    final nextDetail = done < ex.sets.length
+        ? _nextSetPreview(ex.sets[done], done + 1)
+        : null;
+    NotificationService.updateWorkoutRestDone(
+      exerciseName: ex.exerciseName,
+      setsCompleted: done,
+      totalSets: ex.sets.length,
+      nextSetDetail: nextDetail,
+    );
+  }
+
+  void _completeNextSetFromNotification() {
+    final info = _restNotifier.value;
+    if (info == null) return;
+    final p = context.read<WorkoutProvider>();
+    final workout = p.activeWorkout;
+    if (workout == null || info.exIdx >= workout.exercises.length) return;
+    final ex = workout.exercises[info.exIdx];
+    // Find the next incomplete set after the one that started this rest.
+    var nextIdx = ex.sets.indexWhere((s) => !s.completed, info.setIdx + 1);
+    if (nextIdx == -1) nextIdx = ex.sets.indexWhere((s) => !s.completed);
+    if (nextIdx == -1) return;
+    _toggleComplete(info.exIdx, nextIdx);
+  }
+
+  static String? _nextSetPreview(SetEntry set, int setNumber) {
+    final w = set.weightInput.isNotEmpty
+        ? set.weightInput
+        : (set.previousWeight != null ? _fmtWStatic(set.previousWeight!) : null);
+    final r = set.repsInput.isNotEmpty
+        ? set.repsInput
+        : (set.previousReps != null ? '${set.previousReps}' : null);
+    final rpe = set.rpe ?? set.previousRpe;
+    final parts = <String>['Set $setNumber'];
+    if (w != null) parts.add('${w}kg');
+    if (r != null) parts.add('× $r');
+    if (rpe != null) {
+      parts.add('@ RPE ${rpe % 1 == 0 ? rpe.toInt() : rpe}');
+    }
+    return parts.length > 1 ? parts.join(' · ') : null;
+  }
+
+  static String _fmtWStatic(double w) =>
+      w % 1 == 0 ? w.toInt().toString() : w.toString();
 
   void _onValueChanged(String value, bool isWeight) {
     final p = context.read<WorkoutProvider>();
@@ -225,6 +289,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
             return;
           }
         }
+        // RPE required — set.rpe reflects any auto-fill that just happened
+        if (set.rpe == null) return;
       }
     }
 
@@ -245,7 +311,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       final detail = _setDetail(set);
       if (restSecs > 0) {
         NotificationService.cancelRestDone();
-        NotificationService.updateWorkoutResting(remainingSeconds: restSecs);
+        NotificationService.updateWorkoutResting(
+            remainingSeconds: restSecs, exerciseName: ex.exerciseName);
         NotificationService.scheduleRestDone(restSecs);
       } else {
         NotificationService.showWorkoutNotification(
@@ -1134,7 +1201,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
             if (info != null) {
               final updated = info.adjust(-30);
               _restNotifier.value = updated;
-              NotificationService.updateWorkoutResting(remainingSeconds: updated.remaining);
+              final exName = context.read<WorkoutProvider>().activeWorkout
+                  ?.exercises[info.exIdx].exerciseName ?? '';
+              NotificationService.updateWorkoutResting(
+                  remainingSeconds: updated.remaining, exerciseName: exName);
             }
           }),
           const SizedBox(width: 6),
@@ -1181,7 +1251,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
             if (info != null) {
               final updated = info.adjust(30);
               _restNotifier.value = updated;
-              NotificationService.updateWorkoutResting(remainingSeconds: updated.remaining);
+              final exName = context.read<WorkoutProvider>().activeWorkout
+                  ?.exercises[info.exIdx].exerciseName ?? '';
+              NotificationService.updateWorkoutResting(
+                  remainingSeconds: updated.remaining, exerciseName: exName);
             }
           }),
         ],

@@ -11,6 +11,12 @@ import '../models/gym_settings.dart';
 /// Slot A (ID 0): Morning (default 9:00 AM) — what to train today.
 /// Slot B (ID 1): Midday (user-configured) — pre-workout nudge OR post-workout celebration.
 /// Slot C (ID 2): Evening (default 9:00 PM) — tomorrow's plan OR recovery if trained today.
+// Top-level handler for notification actions when app is backgrounded/killed.
+@pragma('vm:entry-point')
+void _bgNotifResponse(NotificationResponse response) {
+  // showsUserInterface:true on the action relaunches the app; handled there.
+}
+
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static const _channelId = 'gains_reminders';
@@ -20,13 +26,31 @@ class NotificationService {
   static const _idEvening = 2;
   static const _idWorkout = 3;
   static const _workoutChannelId = 'gains_workout';
+  static const _actionCompleteSet = 'complete_set';
+  static const _actionEndRest = 'end_rest';
+
+  // Registered by ActiveWorkoutScreen.
+  static VoidCallback? onCompleteSet;
+  static VoidCallback? onEndRest;
+
+  static void _onNotifResponse(NotificationResponse response) {
+    if (response.actionId == _actionCompleteSet) {
+      onCompleteSet?.call();
+    } else if (response.actionId == _actionEndRest) {
+      onEndRest?.call();
+    }
+  }
 
   static Future<void> init() async {
     tz.initializeTimeZones();
     final timezoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timezoneName));
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    await _plugin.initialize(const InitializationSettings(android: android));
+    await _plugin.initialize(
+      const InitializationSettings(android: android),
+      onDidReceiveNotificationResponse: _onNotifResponse,
+      onDidReceiveBackgroundNotificationResponse: _bgNotifResponse,
+    );
     final androidImpl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await androidImpl?.createNotificationChannel(const AndroidNotificationChannel(
@@ -77,14 +101,16 @@ class NotificationService {
 
   static Future<void> updateWorkoutResting({
     required int remainingSeconds,
+    String exerciseName = '',
   }) async {
     final endTime = DateTime.now()
         .add(Duration(seconds: remainingSeconds))
         .millisecondsSinceEpoch;
+    final title = exerciseName.isNotEmpty ? 'Resting · $exerciseName' : 'Resting';
     await _plugin.show(
       _idWorkout,
-      'Resting',
-      remainingSeconds > 0 ? 'Rest timer running' : 'Rest done — start your set',
+      title,
+      'Rest timer running',
       NotificationDetails(
         android: AndroidNotificationDetails(
           _workoutChannelId,
@@ -94,11 +120,19 @@ class NotificationService {
           ongoing: true,
           autoCancel: false,
           icon: '@mipmap/ic_launcher',
-          usesChronometer: remainingSeconds > 0,
+          usesChronometer: true,
           chronometerCountDown: true,
-          when: remainingSeconds > 0 ? endTime : null,
-          showWhen: remainingSeconds > 0,
+          when: endTime,
+          showWhen: true,
           visibility: NotificationVisibility.public,
+          actions: const [
+            AndroidNotificationAction(
+              _actionEndRest,
+              'End Rest',
+              showsUserInterface: true,
+              cancelNotification: false,
+            ),
+          ],
         ),
       ),
     );
@@ -108,21 +142,36 @@ class NotificationService {
     required String exerciseName,
     required int setsCompleted,
     required int totalSets,
+    String? nextSetDetail,
   }) async {
+    final restEndedAt = DateTime.now().millisecondsSinceEpoch;
+    final body = nextSetDetail ?? 'Set ${setsCompleted + 1} / $totalSets';
     await _plugin.show(
       _idWorkout,
-      'Rest done — start your set',
-      '$exerciseName · $setsCompleted / $totalSets sets',
+      exerciseName,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _workoutChannelId,
           'Active Workout',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
+          importance: Importance.low,
+          priority: Priority.low,
           ongoing: true,
           autoCancel: false,
           icon: '@mipmap/ic_launcher',
           visibility: NotificationVisibility.public,
+          usesChronometer: true,
+          chronometerCountDown: false,
+          when: restEndedAt,
+          showWhen: true,
+          actions: const [
+            AndroidNotificationAction(
+              _actionCompleteSet,
+              'Complete Set',
+              showsUserInterface: true,
+              cancelNotification: false,
+            ),
+          ],
         ),
       ),
     );

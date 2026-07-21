@@ -1256,10 +1256,12 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   Map<String, int> getWeeklyMuscleSets() {
-    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    final now = DateTime.now();
+    final daysFromStart = (now.weekday - weekStartDay + 7) % 7;
+    final weekStart = DateTime(now.year, now.month, now.day - daysFromStart);
     final result = <String, int>{};
     for (final session in _history) {
-      if (session.startTime.isAfter(weekAgo)) {
+      if (!session.startTime.isBefore(weekStart)) {
         for (final ex in session.exercises) {
           final completed = ex.sets.where((s) => s.completed).length;
           if (completed > 0) {

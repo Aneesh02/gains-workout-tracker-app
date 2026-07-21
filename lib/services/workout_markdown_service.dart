@@ -106,6 +106,11 @@ class WorkoutMarkdownService {
         '# ${session.name} · ${_fmtDuration(session.duration)}');
     buf.writeln();
 
+    if (session.notes.isNotEmpty) {
+      buf.writeln('> ${session.notes}');
+      buf.writeln();
+    }
+
     if (session.personalRecords.isNotEmpty) {
       buf.writeln(
           '> **New PRs:** ${session.personalRecords.join(', ')}');
@@ -116,6 +121,11 @@ class WorkoutMarkdownService {
     for (final ex in session.exercises) {
       buf.writeln('## ${ex.exerciseName}');
       buf.writeln();
+
+      if (ex.notes.isNotEmpty) {
+        buf.writeln('*${ex.notes}*');
+        buf.writeln();
+      }
 
       final isCardio = ex.sets
           .any((s) => s.kmInput.isNotEmpty || s.timeInput.isNotEmpty);
