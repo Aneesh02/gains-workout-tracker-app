@@ -103,9 +103,13 @@ class NotificationService {
 
   // Countdown timer + "End Rest" action — built natively so the action routes
   // through NotificationActionReceiver → Flutter engine MethodChannel.
+  // nextExerciseName/nextBody are stored natively so the "End Rest" tap can
+  // directly show the next-set notification without a dart→native roundtrip.
   static Future<void> updateWorkoutResting({
     required int remainingSeconds,
     String exerciseName = '',
+    String nextExerciseName = '',
+    String nextBody = '',
   }) async {
     final endMs = DateTime.now()
         .add(Duration(seconds: remainingSeconds))
@@ -114,6 +118,8 @@ class NotificationService {
       await _ch.invokeMethod('showWorkoutResting', {
         'exerciseName': exerciseName,
         'endTimeMs': endMs,
+        'nextExerciseName': nextExerciseName,
+        'nextBody': nextBody,
       });
     } catch (_) {}
   }

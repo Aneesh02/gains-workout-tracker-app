@@ -50,6 +50,9 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   final _scroll = ScrollController();
   final _restNotifier = ValueNotifier<_RestInfo?>(null);
   bool _restNotified = false;
+  // Next-set info for the current rest — stored so +30/-30 can re-pass it.
+  String _restNextExerciseName = '';
+  String _restNextBody = '';
 
   @override
   void initState() {
@@ -90,21 +93,25 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           _restNotified = true;
           HapticFeedback.heavyImpact();
           HapticFeedback.vibrate();
-          NotificationService.playBell(); // native MediaPlayer with audio-focus ducking
-          NotificationService.cancelRestDone(); // handled in-app, dismiss alarm
+          // Bell is always played by the native alarm (RestDoneReceiver).
+          // We never cancel it here — letting it fire is what makes the bell
+          // work reliably in background (MethodChannel is not usable then).
           final workout2 = context.read<WorkoutProvider>().activeWorkout;
           if (workout2 != null && info.exIdx < workout2.exercises.length) {
             final ex2 = workout2.exercises[info.exIdx];
             final done2 = ex2.sets.where((s) => s.completed).length;
-            final nextDetail = done2 < ex2.sets.length
-                ? _nextSetPreview(ex2.sets[done2], done2 + 1)
-                : null;
-            NotificationService.updateWorkoutRestDone(
-              exerciseName: ex2.exerciseName,
-              setsCompleted: done2,
-              totalSets: ex2.sets.length,
-              nextSetDetail: nextDetail,
-            );
+            if (done2 < ex2.sets.length) {
+              // Same exercise still has sets — show count-up overtime timer.
+              NotificationService.updateWorkoutRestDone(
+                exerciseName: ex2.exerciseName,
+                setsCompleted: done2,
+                totalSets: ex2.sets.length,
+                nextSetDetail: _nextSetPreview(ex2.sets[done2], done2 + 1),
+              );
+            } else {
+              // Last set of this exercise done — jump to next exercise.
+              _showNextPendingNotification(workout2);
+            }
           }
         }
       }
@@ -132,21 +139,37 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     _restNotified = true;
     _restNotifier.value = null;
     NotificationService.cancelRestDone();
-    final p = context.read<WorkoutProvider>();
-    final workout = p.activeWorkout;
-    if (workout == null || info.exIdx >= workout.exercises.length) return;
-    final ex = workout.exercises[info.exIdx];
-    final done = ex.sets.where((s) => s.completed).length;
-    final nextDetail = done < ex.sets.length
-        ? _nextSetPreview(ex.sets[done], done + 1)
-        : null;
-    // User ended rest early — no overtime, so use showNextSetDue (no chronometer).
-    NotificationService.showNextSetDue(
-      exerciseName: ex.exerciseName,
-      setsCompleted: done,
-      totalSets: ex.sets.length,
-      nextSetDetail: nextDetail,
-    );
+    final workout = context.read<WorkoutProvider>().activeWorkout;
+    if (workout == null) return;
+    _showNextPendingNotification(workout);
+  }
+
+  // Shows "Complete Set" notification for the first incomplete set across all
+  // exercises. Falls back to a generic notification when all sets are done.
+  void _showNextPendingNotification(dynamic workout) {
+    for (int exIdx = 0; exIdx < workout.exercises.length; exIdx++) {
+      final ex = workout.exercises[exIdx];
+      final nextPending = ex.sets.indexWhere((s) => !s.completed);
+      if (nextPending != -1) {
+        final done = ex.sets.where((s) => s.completed).length;
+        NotificationService.showNextSetDue(
+          exerciseName: ex.exerciseName,
+          setsCompleted: done,
+          totalSets: ex.sets.length,
+          nextSetDetail: _nextSetPreview(ex.sets[nextPending], nextPending + 1),
+        );
+        return;
+      }
+    }
+    // All sets across all exercises are done.
+    if (workout.exercises.isNotEmpty) {
+      final last = workout.exercises.last;
+      NotificationService.showWorkoutNotification(
+        exerciseName: last.exerciseName,
+        setsCompleted: last.sets.length,
+        totalSets: last.sets.length,
+      );
+    }
   }
 
   void _completeNextSetFromNotification() {
@@ -336,9 +359,29 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       final done = ex.sets.where((s) => s.completed).length;
       final detail = _setDetail(set);
       if (restSecs > 0) {
+        // Find the first incomplete set across all exercises for the End Rest button.
+        final updatedWorkout = p.activeWorkout;
+        _restNextExerciseName = '';
+        _restNextBody = '';
+        if (updatedWorkout != null) {
+          for (final e in updatedWorkout.exercises) {
+            final nextIdx = e.sets.indexWhere((s) => !s.completed);
+            if (nextIdx != -1) {
+              final done = e.sets.where((s) => s.completed).length;
+              _restNextExerciseName = e.exerciseName;
+              _restNextBody = _nextSetPreview(e.sets[nextIdx], nextIdx + 1) ??
+                  'Set ${done + 1} / ${e.sets.length}';
+              break;
+            }
+          }
+        }
         NotificationService.cancelRestDone();
         NotificationService.updateWorkoutResting(
-            remainingSeconds: restSecs, exerciseName: ex.exerciseName);
+          remainingSeconds: restSecs,
+          exerciseName: ex.exerciseName,
+          nextExerciseName: _restNextExerciseName,
+          nextBody: _restNextBody,
+        );
         NotificationService.scheduleRestDone(restSecs);
       } else {
         // No rest timer — show the next pending set immediately with Complete Set action.
@@ -1252,7 +1295,16 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               final exName = context.read<WorkoutProvider>().activeWorkout
                   ?.exercises[info.exIdx].exerciseName ?? '';
               NotificationService.updateWorkoutResting(
-                  remainingSeconds: updated.remaining, exerciseName: exName);
+                remainingSeconds: updated.remaining,
+                exerciseName: exName,
+                nextExerciseName: _restNextExerciseName,
+                nextBody: _restNextBody,
+              );
+              // Reschedule alarm to match new remaining time.
+              NotificationService.cancelRestDone();
+              if (updated.remaining > 0) {
+                NotificationService.scheduleRestDone(updated.remaining);
+              }
             }
           }),
           const SizedBox(width: 6),
@@ -1302,7 +1354,14 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               final exName = context.read<WorkoutProvider>().activeWorkout
                   ?.exercises[info.exIdx].exerciseName ?? '';
               NotificationService.updateWorkoutResting(
-                  remainingSeconds: updated.remaining, exerciseName: exName);
+                remainingSeconds: updated.remaining,
+                exerciseName: exName,
+                nextExerciseName: _restNextExerciseName,
+                nextBody: _restNextBody,
+              );
+              // Reschedule alarm to match new remaining time.
+              NotificationService.cancelRestDone();
+              NotificationService.scheduleRestDone(updated.remaining);
             }
           }),
         ],

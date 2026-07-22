@@ -67,7 +67,9 @@ class MainActivity : FlutterActivity() {
                     "showWorkoutResting" -> {
                         val name = call.argument<String>("exerciseName") ?: ""
                         val endMs = (call.argument<Any>("endTimeMs") as? Number)?.toLong() ?: 0L
-                        WorkoutNotifier.showResting(this, name, endMs)
+                        val nextEx = call.argument<String>("nextExerciseName") ?: ""
+                        val nextBody = call.argument<String>("nextBody") ?: ""
+                        WorkoutNotifier.showResting(this, name, endMs, nextEx, nextBody)
                         result.success(null)
                     }
                     "showWorkoutNextSet" -> {

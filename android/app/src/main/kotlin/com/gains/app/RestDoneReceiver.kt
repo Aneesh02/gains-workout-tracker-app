@@ -11,17 +11,24 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
-
 class RestDoneReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         vibrate(context)
         Companion.playBell(context)
-        showNotification(context)
+        // Only post the fallback notification when the Flutter engine is NOT
+        // running (app killed). When backgrounded, the Dart timer is still alive
+        // and will post the proper next-set notification itself.
+        val engine = io.flutter.embedding.engine.FlutterEngineCache
+            .getInstance().get("main_engine")
+        if (engine == null) {
+            showNotification(context)
+        }
     }
 
     private fun vibrate(context: Context) {
@@ -54,8 +61,6 @@ class RestDoneReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Replace the "Timer running" notification (same ID 3, same channel) with
-        // "Rest done" + a count-up chronometer showing elapsed overtime.
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("Rest done — start your set")
@@ -78,43 +83,60 @@ class RestDoneReceiver : BroadcastReceiver() {
         const val NOTIFICATION_ID = 3
 
         fun playBell(context: Context) {
+            // Hold a WakeLock so the device stays awake through playback.
+            val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gains:bell")
+            wl.acquire(15_000L)
+
             try {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                // USAGE_ALARM plays through the alarm stream — never silenced by ringer/DND.
-                // AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK asks music apps to lower their volume.
-                val audioAttrs = AudioAttributes.Builder()
+
+                // USAGE_MEDIA routes to the active audio device (BT headphones,
+                // wired headphones, speaker — whatever the user is listening on).
+                // USAGE_ALARM ignores routing and forces the phone speaker.
+                val mediaAttrs = AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .build()
 
+                // AUDIOFOCUS_GAIN_TRANSIENT: music apps pause briefly for the bell
+                // then resume automatically when we abandon focus. More reliable
+                // than MAY_DUCK because it works for every app, not just ones that
+                // implement their own ducking listener.
                 var focusRequest: AudioFocusRequest? = null
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                        .setAudioAttributes(audioAttrs)
+                    focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                        .setAudioAttributes(mediaAttrs)
                         .build()
                     am.requestAudioFocus(focusRequest)
                 } else {
                     @Suppress("DEPRECATION")
-                    am.requestAudioFocus(null, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 }
 
-                val afd = context.assets.openFd("flutter_assets/sounds/boxing_bell.mp3")
+                val uri = android.net.Uri.parse(
+                    "android.resource://${context.packageName}/raw/boxing_bell"
+                )
                 val mp = MediaPlayer()
-                mp.setAudioAttributes(audioAttrs)
-                mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                afd.close()
+                mp.setAudioAttributes(mediaAttrs)
+                mp.setDataSource(context, uri)
                 mp.prepare()
                 mp.start()
+
+                val fr = focusRequest
                 mp.setOnCompletionListener { player ->
                     player.release()
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        focusRequest?.let { am.abandonAudioFocusRequest(it) }
+                        fr?.let { am.abandonAudioFocusRequest(it) }
                     } else {
                         @Suppress("DEPRECATION")
                         am.abandonAudioFocus(null)
                     }
+                    if (wl.isHeld) wl.release()
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                if (wl.isHeld) wl.release()
+            }
         }
 
         fun schedule(context: Context, epochMs: Long) {

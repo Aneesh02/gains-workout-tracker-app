@@ -296,7 +296,7 @@ class _WorkoutsPerWeekChart extends StatefulWidget {
 }
 
 class _WorkoutsPerWeekChartState extends State<_WorkoutsPerWeekChart> {
-  static const _defaultWeeks = 12;
+  static const _defaultWeeks = 16;
   static const double _sq = 14;
   static const double _gap = 3;
   static const int _days = 7;
@@ -510,7 +510,7 @@ class _WorkoutsPerWeekChartState extends State<_WorkoutsPerWeekChart> {
               onTap: _toggleShowAll,
               child: Text(
                 _showAll
-                    ? 'Show last 12 weeks'
+                    ? 'Show last 16 weeks'
                     : 'Show all history (${_allWeeks.length} weeks)',
                 style: const TextStyle(
                     color: AppColors.blue,
