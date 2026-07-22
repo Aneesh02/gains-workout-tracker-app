@@ -258,6 +258,19 @@ Muscle group colours: Chest=blue, Back=purple, Shoulders=orange, Arms=red, Legs=
 
 ---
 
+## Changelog
+
+### Jul 2026
+- **Notification bar actions fully working** — Complete Set and End Rest buttons in the persistent workout notification now reliably update state and advance to the next set/exercise. Fixed by routing actions natively through `NotificationActionReceiver` → `FlutterEngineCache` → dart, and eliminating the unreliable dart→native→notification roundtrip for End Rest by storing next-set data at rest-start time.
+- **Rest-complete bell audio** — Bell now plays through whatever audio hardware is active (BT headphones, wired, speaker) via `USAGE_MEDIA`. Previously used `USAGE_ALARM` which always forced the phone speaker. Uses `res/raw/boxing_bell.mp3` (bypasses compressed Flutter asset issues) with a `PARTIAL_WAKE_LOCK` to hold the device awake through playback. Music briefly pauses via `AUDIOFOCUS_GAIN_TRANSIENT` and resumes when bell finishes.
+- **Rest timer alarm reschedules on ±30s adjustment** — Tapping +30/−30 now cancels the existing native alarm and schedules a new one at the adjusted time, so the bell fires at the correct moment.
+- **Notification body tap opens app** — Tapping the notification outside the action buttons brings the app to foreground.
+- **Workouts-per-week chart shows 16 weeks** by default (was 12).
+- **Week streak card** matches the height of the consistency card on the home page.
+- **Home page muscle breakdown** always shows all 8 muscle groups; untrained groups show 0 sets in muted text.
+
+---
+
 ## License
 
 MIT
